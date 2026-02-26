@@ -11,8 +11,7 @@
     "@aws-sdk/client-s3": "^3.525.0",
     "@aws-sdk/s3-request-presigner": "^3.525.0",
     "@aws-sdk/client-sagemaker-runtime": "^3.525.0",
-    "@opensearch-project/opensearch": "^2.6.0",
-    "@aws-sdk/client-rds-data": "^3.525.0"
+    "@opensearch-project/opensearch": "^2.6.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.136",
