@@ -125,7 +125,7 @@ Resources:
     Properties:
       FunctionName: !Sub 'pashu-aadhaar-get-upload-url-${Stage}'
       CodeUri: lambda/
-      Handler: handler.handler
+      Handler: getUploadUrl/handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Description: Generates presigned S3 URL for direct image upload
       Environment:
