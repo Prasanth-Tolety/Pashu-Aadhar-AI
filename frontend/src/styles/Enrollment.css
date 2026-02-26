@@ -1,0 +1,53 @@
+.enrollment-page {
+  padding-bottom: 32px;
+}
+
+.enrollment-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #ffebee;
+  border-radius: var(--border-radius);
+  padding: 12px;
+  margin: 16px 0;
+  color: var(--error);
+  font-size: 0.875rem;
+}
+
+.enroll-submit-btn {
+  margin-top: 16px;
+  font-size: 1.05rem;
+  padding: 14px;
+}
+
+.enrollment-tips {
+  background: #f1f8e9;
+}
+
+.enrollment-tips h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 10px;
+}
+
+.enrollment-tips ul {
+  list-style: none;
+  padding: 0;
+}
+
+.enrollment-tips li {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.enrollment-tips li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+  font-weight: 700;
+}
