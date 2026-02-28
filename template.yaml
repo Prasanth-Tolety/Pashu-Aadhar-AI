@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pashu-Aadhaar Enrollment Portal - Serverless Backend
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+        NODE_OPTIONS: '--enable-source-maps'
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+  S3BucketName:
+    Type: String
+    Description: S3 bucket name for storing animal images
+  SageMakerEndpointName:
+    Type: String
+    Description: SageMaker endpoint name for embedding generation
+  OpenSearchEndpoint:
+    Type: String
+    Description: OpenSearch endpoint URL for vector similarity search
+  OpenSearchIndex:
+    Type: String
+    Default: livestock-embeddings
+    Description: OpenSearch index name for embeddings
+  SimilarityThreshold:
+    Type: String
+    Default: '0.85'
+    Description: Cosine similarity threshold for matching
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+    Description: CORS allowed origin (set to your frontend domain in production)
+
+Resources:
+  # S3 Bucket for animal images
+  AnimalImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, PUT, POST]
+            AllowedOrigins: [!Ref AllowedOrigin]
+            MaxAge: 3600
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteUploadsAfter30Days
+            Status: Enabled
+            Prefix: uploads/
+            ExpirationInDays: 30
+
+  # Lambda execution role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: PashuAadhaarLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+              - Effect: Allow
+                Action:
+                  - sagemaker:InvokeEndpoint
+                Resource: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:endpoint/${SageMakerEndpointName}'
+              - Effect: Allow
+                Action:
+                  - es:ESHttpGet
+                  - es:ESHttpPost
+                  - es:ESHttpPut
+                Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/*'
+
+  # API Gateway
+  PashuAadhaarApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub 'pashu-aadhaar-api-${Stage}'
+      StageName: !Ref Stage
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: !Sub "'${AllowedOrigin}'"
+      Auth:
+        DefaultAuthorizer: NONE
+
+  # GetUploadUrl Lambda
+  GetUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-get-upload-url-${Stage}'
+      CodeUri: lambda/
+      Handler: getUploadUrl/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Generates presigned S3 URL for direct image upload
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref S3BucketName
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        GetUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /api/get-upload-url
+            Method: GET
+        GetUploadUrlOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /api/get-upload-url
+            Method: OPTIONS
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - getUploadUrl/handler.ts
+
+  # Enroll Lambda
+  EnrollFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-enroll-${Stage}'
+      CodeUri: lambda/
+      Handler: dist/enroll/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Processes animal enrollment using SageMaker and OpenSearch
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref S3BucketName
+          SAGEMAKER_ENDPOINT_NAME: !Ref SageMakerEndpointName
+          OPENSEARCH_ENDPOINT: !Ref OpenSearchEndpoint
+          OPENSEARCH_INDEX: !Ref OpenSearchIndex
+          SIMILARITY_THRESHOLD: !Ref SimilarityThreshold
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        Enroll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /api/enroll
+            Method: POST
+        EnrollOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /api/enroll
+            Method: OPTIONS
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - enroll/handler.ts
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${PashuAadhaarApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiUrl'
+
+  AnimalImagesBucketName:
+    Description: S3 bucket name for animal images
+    Value: !Ref AnimalImagesBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketName'
+
+  GetUploadUrlFunctionArn:
+    Description: GetUploadUrl Lambda function ARN
+    Value: !GetAtt GetUploadUrlFunction.Arn
+
+  EnrollFunctionArn:
+    Description: Enroll Lambda function ARN
+    Value: !GetAtt EnrollFunction.Arn

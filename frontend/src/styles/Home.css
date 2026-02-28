@@ -1,0 +1,89 @@
+.home-page {
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.home-hero {
+  text-align: center;
+  padding: 32px 0 24px;
+}
+
+.home-logo {
+  font-size: 5rem;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 4px 12px rgba(46, 125, 50, 0.3));
+}
+
+.home-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+}
+
+.home-subtitle {
+  font-size: 1rem;
+  color: var(--primary);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.home-description {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.home-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.feature-card {
+  background: var(--surface);
+  border-radius: var(--border-radius);
+  padding: 16px 8px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.feature-icon {
+  font-size: 1.75rem;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.feature-card h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.feature-card p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.home-enroll-btn {
+  margin: 8px 0;
+  font-size: 1.1rem;
+  padding: 16px;
+}
+
+.home-note {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 12px;
+}
+
+@media (max-width: 360px) {
+  .home-features {
+    grid-template-columns: 1fr;
+  }
+}

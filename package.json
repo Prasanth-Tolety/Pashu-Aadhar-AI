@@ -1,0 +1,17 @@
+{
+  "name": "pashu-aadhaar-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pashu-Aadhaar Enrollment Portal – monorepo root",
+  "scripts": {
+    "dev": "concurrently --names \"api,ui\" --prefix-colors \"cyan,green\" \"npm run dev:api\" \"npm run dev:ui\"",
+    "dev:api": "npm start --prefix local-server",
+    "dev:ui": "npm run dev --prefix frontend",
+    "install:all": "npm install --prefix frontend && npm install --prefix lambda && npm install --prefix local-server",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:lambda": "npm run build --prefix lambda"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
