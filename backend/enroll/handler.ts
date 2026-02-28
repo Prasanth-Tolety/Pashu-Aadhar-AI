@@ -9,6 +9,10 @@ import {
   validateImageKey,
   generateLivestockId,
 } from '../shared/utils';
+import {
+  DEFAULT_SIMILARITY_THRESHOLD,
+  OPENSEARCH_REQUEST_TIMEOUT_MS,
+} from '../shared/constants';
 
 const logger = createLogger('enroll');
 
@@ -19,7 +23,7 @@ const BUCKET_NAME = process.env.S3_BUCKET_NAME!;
 const SAGEMAKER_ENDPOINT = process.env.SAGEMAKER_ENDPOINT_NAME!;
 const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT!;
 const OPENSEARCH_INDEX = process.env.OPENSEARCH_INDEX || 'livestock-embeddings';
-const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || '0.85');
+const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || String(DEFAULT_SIMILARITY_THRESHOLD));
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
 interface OpenSearchHit {
@@ -42,6 +46,8 @@ interface OpenSearchResponse {
 function getOpenSearchClient(): OpenSearchClient {
   return new OpenSearchClient({
     node: OPENSEARCH_ENDPOINT,
+    requestTimeout: OPENSEARCH_REQUEST_TIMEOUT_MS,
+    ssl: { rejectUnauthorized: true },
   });
 }
 
@@ -51,11 +57,8 @@ async function getImageFromS3(imageKey: string): Promise<Buffer> {
   if (!response.Body) {
     throw new Error('Empty response body from S3');
   }
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
+  const byteArray = await response.Body.transformToByteArray();
+  return Buffer.from(byteArray);
 }
 
 async function getEmbeddingFromSageMaker(imageBuffer: Buffer): Promise<number[]> {
@@ -71,8 +74,11 @@ async function getEmbeddingFromSageMaker(imageBuffer: Buffer): Promise<number[]>
   }
   const responseText = Buffer.from(response.Body).toString('utf-8');
   const parsed = JSON.parse(responseText) as { embedding: number[] };
-  if (!Array.isArray(parsed.embedding)) {
+  if (!Array.isArray(parsed.embedding) || parsed.embedding.length === 0) {
     throw new Error('Invalid embedding response from SageMaker');
+  }
+  if (!parsed.embedding.every((v) => typeof v === 'number' && isFinite(v))) {
+    throw new Error('Embedding contains non-numeric or non-finite values');
   }
   return parsed.embedding;
 }
@@ -192,6 +198,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     );
   } catch (err) {
     logger.error('Enrollment failed', err);
+    if (err instanceof Error && (err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT') || err.name === 'ConnectionError' || err.name === 'TimeoutError')) {
+      return buildErrorResponse(503, 'OPENSEARCH_UNAVAILABLE', 'Search service is temporarily unavailable', ALLOWED_ORIGIN);
+    }
     const message = err instanceof Error ? err.message : 'Enrollment failed';
     return buildErrorResponse(500, 'ENROLLMENT_ERROR', message, ALLOWED_ORIGIN);
   }

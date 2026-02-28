@@ -2,6 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createLogger, buildResponse, buildErrorResponse, validateFileName, validateContentType } from '../shared/utils';
+import { MAX_FILE_SIZE_BYTES } from '../shared/constants';
 
 const logger = createLogger('getUploadUrl');
 
@@ -39,13 +40,29 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     );
   }
 
+  const fileSize = event.queryStringParameters?.fileSize;
+  if (fileSize) {
+    const size = parseInt(fileSize, 10);
+    if (isNaN(size) || size <= 0 || size > MAX_FILE_SIZE_BYTES) {
+      logger.warn('Invalid file size', { fileSize });
+      return buildErrorResponse(
+        400,
+        'INVALID_FILE_SIZE',
+        `File size must be between 1 byte and ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB`,
+        ALLOWED_ORIGIN
+      );
+    }
+  }
+
   if (!BUCKET_NAME) {
     logger.error('S3_BUCKET_NAME environment variable is not configured');
     return buildErrorResponse(500, 'CONFIGURATION_ERROR', 'Server configuration error', ALLOWED_ORIGIN);
   }
 
   try {
-    const imageKey = `uploads/${Date.now()}-${fileName.replace(/\s+/g, '_')}`;
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
+    const imageKey = `uploads/${timestamp}-${fileName.replace(/\s+/g, '_')}`;
 
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
