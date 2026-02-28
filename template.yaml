@@ -9,6 +9,7 @@ Globals:
     Runtime: nodejs20.x
     Architectures:
       - x86_64
+    Tracing: Active
     Environment:
       Variables:
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
@@ -69,6 +70,19 @@ Resources:
             Prefix: uploads/
             ExpirationInDays: 30
 
+  # Shared utilities Lambda layer
+  SharedUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub 'pashu-aadhaar-shared-utils-${Stage}'
+      Description: Shared utilities for Pashu-Aadhaar Lambda functions
+      ContentUri: backend/shared/
+      CompatibleRuntimes:
+        - nodejs20.x
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: nodejs20.x
+
   # Lambda execution role
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -82,6 +96,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
       Policies:
         - PolicyName: PashuAadhaarLambdaPolicy
           PolicyDocument:
@@ -128,6 +143,9 @@ Resources:
       Handler: getUploadUrl/handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Description: Generates presigned S3 URL for direct image upload
+      Timeout: 10
+      Layers:
+        - !Ref SharedUtilsLayer
       Environment:
         Variables:
           S3_BUCKET_NAME: !Ref S3BucketName
@@ -165,6 +183,8 @@ Resources:
       Description: Processes animal enrollment using SageMaker and OpenSearch
       Timeout: 60
       MemorySize: 1024
+      Layers:
+        - !Ref SharedUtilsLayer
       Environment:
         Variables:
           S3_BUCKET_NAME: !Ref S3BucketName
