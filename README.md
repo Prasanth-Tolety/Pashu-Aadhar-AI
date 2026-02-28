@@ -318,7 +318,7 @@ PUT /livestock-embeddings
     "properties": {
       "embedding": {
         "type": "knn_vector",
-        "dimension": 512
+        "dimension": 512  // adjust to match your SageMaker model's output dimension
       },
       "livestock_id": { "type": "keyword" },
       "image_key": { "type": "keyword" },
