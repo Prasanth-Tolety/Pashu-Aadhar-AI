@@ -124,7 +124,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'pashu-aadhaar-get-upload-url-${Stage}'
-      CodeUri: lambda/
+      CodeUri: backend/
       Handler: getUploadUrl/handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Description: Generates presigned S3 URL for direct image upload
@@ -159,7 +159,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'pashu-aadhaar-enroll-${Stage}'
-      CodeUri: lambda/
+      CodeUri: backend/
       Handler: dist/enroll/handler.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Description: Processes animal enrollment using SageMaker and OpenSearch
