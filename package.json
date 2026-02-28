@@ -7,9 +7,9 @@
     "dev": "concurrently --names \"api,ui\" --prefix-colors \"cyan,green\" \"npm run dev:api\" \"npm run dev:ui\"",
     "dev:api": "npm start --prefix local-server",
     "dev:ui": "npm run dev --prefix frontend",
-    "install:all": "npm install --prefix frontend && npm install --prefix lambda && npm install --prefix local-server",
+    "install:all": "npm install --prefix frontend && npm install --prefix backend && npm install --prefix local-server",
     "build:frontend": "npm run build --prefix frontend",
-    "build:lambda": "npm run build --prefix lambda"
+    "build:backend": "npm run build --prefix backend"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
