@@ -128,9 +128,9 @@ function postprocessYolo(
 }
 
 /**
- * Centre-crop fallback: returns a box covering the centre 60 % of the image.
+ * Center-crop fallback: returns a box covering the center 60 % of the image.
  */
-function centreCropFallback(img: HTMLImageElement): BoundingBox {
+function centerCropFallback(img: HTMLImageElement): BoundingBox {
   const w = img.naturalWidth;
   const h = img.naturalHeight;
   const cropW = w * 0.6;
@@ -172,8 +172,8 @@ export async function detectMuzzle(file: File): Promise<DetectionResult> {
     return { detected: box !== null, box, modelUsed: true };
   }
 
-  // Fallback: centre crop
-  const box = centreCropFallback(img);
+  // Fallback: center crop
+  const box = centerCropFallback(img);
   URL.revokeObjectURL(img.src);
   return { detected: true, box, modelUsed: false };
 }
