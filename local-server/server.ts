@@ -5,13 +5,13 @@
  * Run with: npm start  (from the local-server/ directory)
  *
  * Endpoints:
- *   GET  /api/get-upload-url?fileName=...&contentType=...
+ *   GET  /upload-url?fileName=...&contentType=...
  *        Returns a fake presigned URL pointing to this server's /mock-upload/* endpoint.
  *
  *   PUT  /mock-upload/<imageKey>
  *        Accepts the raw image upload (mimics S3 presigned PUT). No storage needed.
  *
- *   POST /api/enroll  { imageKey: string }
+ *   POST /enroll  { imageKey: string }
  *        Alternates between NEW and EXISTING responses so you can test both flows.
  *        Odd calls  → status: "NEW"      (new animal enrolled)
  *        Even calls → status: "EXISTING" (animal already registered)
@@ -47,11 +47,11 @@ app.put(
   }
 );
 
-// ── JSON body parser for /api routes ────────────────────────────────────────
-app.use('/api', express.json());
+// ── JSON body parser for API routes ─────────────────────────────────────────
+app.use(express.json());
 
-// ── GET /api/get-upload-url ─────────────────────────────────────────────────
-app.get('/api/get-upload-url', (req: Request, res: Response) => {
+// ── GET /upload-url ─────────────────────────────────────────────────────────
+app.get('/upload-url', (req: Request, res: Response) => {
   const { fileName, contentType } = req.query as {
     fileName?: string;
     contentType?: string;
@@ -79,16 +79,16 @@ app.get('/api/get-upload-url', (req: Request, res: Response) => {
   // Upload URL points directly to this mock server
   const uploadUrl = `http://localhost:${PORT}/mock-upload/${imageKey}`;
 
-  console.log(`[mock] GET /api/get-upload-url → imageKey: ${imageKey}`);
+  console.log(`[mock] GET /upload-url → imageKey: ${imageKey}`);
   res.json({ uploadUrl, imageKey });
 });
 
-// ── POST /api/enroll ─────────────────────────────────────────────────────────
+// ── POST /enroll ─────────────────────────────────────────────────────────────
 // Alternates NEW / EXISTING so you can see both result screens without real ML.
 let enrollCallCount = 0;
 let lastEnrolled: { livestock_id: string } | null = null;
 
-app.post('/api/enroll', (req: Request, res: Response) => {
+app.post('/enroll', (req: Request, res: Response) => {
   const { imageKey } = req.body as { imageKey?: string };
 
   if (!imageKey || typeof imageKey !== 'string') {
@@ -106,7 +106,7 @@ app.post('/api/enroll', (req: Request, res: Response) => {
     const livestock_id = generateLivestockId();
     lastEnrolled = { livestock_id };
     console.log(
-      `[mock] POST /api/enroll (call #${enrollCallCount}) → NEW  livestock_id: ${livestock_id}`
+      `[mock] POST /enroll (call #${enrollCallCount}) → NEW  livestock_id: ${livestock_id}`
     );
     res.status(201).json({
       status: 'NEW',
@@ -116,7 +116,7 @@ app.post('/api/enroll', (req: Request, res: Response) => {
     });
   } else {
     console.log(
-      `[mock] POST /api/enroll (call #${enrollCallCount}) → EXISTING  livestock_id: ${lastEnrolled.livestock_id}`
+      `[mock] POST /enroll (call #${enrollCallCount}) → EXISTING  livestock_id: ${lastEnrolled.livestock_id}`
     );
     res.json({
       status: 'EXISTING',
@@ -139,9 +139,9 @@ app.listen(PORT, () => {
   console.log('\n🐄  Pashu-Aadhaar Mock API Server');
   console.log(`    Listening on http://localhost:${PORT}\n`);
   console.log('    Endpoints:');
-  console.log('      GET  /api/get-upload-url?fileName=...&contentType=...');
+  console.log('      GET  /upload-url?fileName=...&contentType=...');
   console.log('      PUT  /mock-upload/<imageKey>        (fake S3 upload)');
-  console.log('      POST /api/enroll                   (mock ML + vector search)');
+  console.log('      POST /enroll                       (mock ML + vector search)');
   console.log('');
   console.log('    Enrollment responses alternate:');
   console.log('      1st enroll → status: NEW');

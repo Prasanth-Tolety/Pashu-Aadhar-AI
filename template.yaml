@@ -155,13 +155,13 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/get-upload-url
+            Path: /upload-url
             Method: GET
         GetUploadUrlOptions:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/get-upload-url
+            Path: /upload-url
             Method: OPTIONS
     Metadata:
       BuildMethod: esbuild
@@ -198,13 +198,13 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/enroll
+            Path: /enroll
             Method: POST
         EnrollOptions:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/enroll
+            Path: /enroll
             Method: OPTIONS
     Metadata:
       BuildMethod: esbuild

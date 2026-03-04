@@ -11,13 +11,13 @@ const apiClient = axios.create({
 });
 
 export async function getUploadUrl(fileName: string, contentType: string): Promise<UploadUrlResponse> {
-  const response = await apiClient.get<UploadUrlResponse>('/api/get-upload-url', {
+  const response = await apiClient.get<UploadUrlResponse>('/upload-url', {
     params: { fileName, contentType },
   });
   return response.data;
 }
 
 export async function enroll(request: EnrollmentRequest): Promise<EnrollmentResponse> {
-  const response = await apiClient.post<EnrollmentResponse>('/api/enroll', request);
+  const response = await apiClient.post<EnrollmentResponse>('/enroll', request);
   return response.data;
 }
