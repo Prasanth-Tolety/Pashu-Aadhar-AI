@@ -20,13 +20,25 @@ export interface ApiError {
   statusCode: number;
 }
 
-export type EnrollmentStatus = 'idle' | 'uploading' | 'enrolling' | 'success' | 'error';
+export type EnrollmentStatus =
+  | 'idle'
+  | 'uploading'
+  | 'enrolling'
+  | 'quality'
+  | 'detection'
+  | 'cropping'
+  | 'embedding'
+  | 'matching'
+  | 'storing'
+  | 'success'
+  | 'error';
 
 export interface EnrollmentState {
   status: EnrollmentStatus;
   imageFile: File | null;
   imagePreviewUrl: string | null;
   uploadProgress: number;
+  pipelineMessage: string | null;
   result: EnrollmentResponse | null;
   error: string | null;
 }

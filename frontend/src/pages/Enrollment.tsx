@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import ImageUpload from '../components/ImageUpload';
 import CameraCapture from '../components/CameraCapture';
 import UploadProgress from '../components/UploadProgress';
-import { getUploadUrl, enroll } from '../services/api';
-import { uploadToS3 } from '../services/s3';
-import { EnrollmentState } from '../types';
+import { runOfflineEnrollment, ImageQualityError } from '../services/offlineEnrollment';
+import { EnrollmentState, EnrollmentStatus } from '../types';
 import '../styles/Enrollment.css';
 
 export default function Enrollment() {
@@ -16,6 +15,7 @@ export default function Enrollment() {
     imageFile: null,
     imagePreviewUrl: null,
     uploadProgress: 0,
+    pipelineMessage: null,
     result: null,
     error: null,
   });
@@ -40,6 +40,7 @@ export default function Enrollment() {
         status: 'idle',
         error: null,
         result: null,
+        pipelineMessage: null,
       };
     });
   }, []);
@@ -55,32 +56,37 @@ export default function Enrollment() {
   const handleSubmit = async () => {
     if (!state.imageFile) return;
 
-    setState((prev) => ({ ...prev, status: 'uploading', uploadProgress: 0, error: null }));
+    setState((prev) => ({ ...prev, status: 'quality', uploadProgress: 0, error: null, pipelineMessage: null }));
 
     try {
-      const { uploadUrl, imageKey } = await getUploadUrl(
-        state.imageFile.name,
-        state.imageFile.type
-      );
-
-      await uploadToS3(uploadUrl, state.imageFile, (progress) => {
-        setState((prev) => ({ ...prev, uploadProgress: progress }));
+      const pipelineResult = await runOfflineEnrollment(state.imageFile, (progress) => {
+        setState((prev) => ({
+          ...prev,
+          status: progress.step as EnrollmentStatus,
+          pipelineMessage: progress.message,
+        }));
       });
 
-      setState((prev) => ({ ...prev, status: 'enrolling' }));
-
-      const result = await enroll({ imageKey });
-
-      setState((prev) => ({ ...prev, status: 'success', result }));
-      navigate('/result', { state: { result } });
+      setState((prev) => ({ ...prev, status: 'success', result: pipelineResult.enrollment }));
+      navigate('/result', { state: { result: pipelineResult.enrollment } });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Enrollment failed. Please try again.';
-      setState((prev) => ({ ...prev, status: 'error', error: message }));
+      let message: string;
+      if (err instanceof ImageQualityError) {
+        message = `Image quality issues: ${err.quality.issues.join('; ')}`;
+      } else {
+        message = err instanceof Error ? err.message : 'Enrollment failed. Please try again.';
+      }
+      setState((prev) => ({ ...prev, status: 'error', error: message, pipelineMessage: null }));
     }
   };
 
-  const isProcessing = state.status === 'uploading' || state.status === 'enrolling';
+  const pipelineSteps: EnrollmentStatus[] = [
+    'quality', 'detection', 'cropping', 'embedding', 'matching', 'storing',
+  ];
+  const isProcessing =
+    state.status === 'uploading' ||
+    state.status === 'enrolling' ||
+    pipelineSteps.includes(state.status);
 
   return (
     <div className="page enrollment-page">
@@ -94,7 +100,8 @@ export default function Enrollment() {
           {isProcessing ? (
             <UploadProgress
               progress={state.uploadProgress}
-              status={state.status as 'uploading' | 'enrolling'}
+              status={state.status}
+              pipelineMessage={state.pipelineMessage}
             />
           ) : (
             <>
