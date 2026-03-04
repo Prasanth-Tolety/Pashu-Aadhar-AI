@@ -89,6 +89,69 @@
   display: none;
 }
 
+/* Detection overlay canvas - sits on top of video */
+.camera-overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* AI status badge */
+.camera-ai-status {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transition: background 0.3s;
+}
+
+.status-loading {
+  background: rgba(100, 116, 139, 0.85);
+  color: #fff;
+}
+
+.status-error {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+
+.status-searching {
+  background: rgba(30, 41, 59, 0.85);
+  color: #94a3b8;
+}
+
+.status-detected {
+  background: rgba(202, 138, 4, 0.85);
+  color: #fff;
+}
+
+.status-good {
+  background: rgba(22, 163, 74, 0.9);
+  color: #fff;
+  animation: pulse-green 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-green {
+  from { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6); }
+  to   { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+}
+
+/* Hint text below controls */
+.camera-hint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 0 16px 12px;
+}
+
 .camera-controls {
   display: flex;
   align-items: center;
