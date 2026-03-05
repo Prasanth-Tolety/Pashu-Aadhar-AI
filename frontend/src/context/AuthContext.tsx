@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { CognitoUser } from 'amazon-cognito-identity-js';
+import type { UserRole } from '../types';
 import {
   AuthUser,
   signIn as cognitoSignIn,
@@ -7,6 +8,8 @@ import {
   getCurrentUser,
   signOut as cognitoSignOut,
   getIdToken,
+  signUp as cognitoSignUp,
+  confirmSignUp as cognitoConfirmSignUp,
 } from '../services/auth';
 
 interface AuthContextType {
@@ -16,6 +19,8 @@ interface AuthContextType {
   pendingCognitoUser: CognitoUser | null;
   needsNewPassword: boolean;
   login: (phoneNumber: string, password: string) => Promise<void>;
+  signup: (phoneNumber: string, password: string, name: string, role: UserRole, aadhaarLast4?: string) => Promise<void>;
+  confirmSignUp: (phoneNumber: string, code: string) => Promise<void>;
   completeNewPassword: (newPassword: string) => Promise<void>;
   logout: () => void;
 }
@@ -64,6 +69,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const signup = useCallback(async (phoneNumber: string, password: string, name: string, role: UserRole, aadhaarLast4?: string) => {
+    await cognitoSignUp(phoneNumber, password, name, role, aadhaarLast4);
+  }, []);
+
+  const confirmSignUp = useCallback(async (phoneNumber: string, code: string) => {
+    await cognitoConfirmSignUp(phoneNumber, code);
+  }, []);
+
   const completeNewPassword = useCallback(async (newPassword: string) => {
     if (!pendingCognitoUser) throw new Error('No pending user');
     const result = await cognitoCompleteNewPassword(pendingCognitoUser, newPassword);
@@ -90,6 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         pendingCognitoUser,
         needsNewPassword,
         login,
+        signup,
+        confirmSignUp,
         completeNewPassword,
         logout,
       }}

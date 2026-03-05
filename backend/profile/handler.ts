@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { createLogger, buildResponse, buildErrorResponse } from '../shared/utils';
 
 const logger = createLogger('profile');
@@ -15,6 +15,7 @@ const USER_ROLE_MAPPING_TABLE = 'user_role_mapping';
 
 /**
  * GET /me  → returns user profile from Cognito claims + DynamoDB owner record
+ * POST /me → updates owner profile in DynamoDB
  */
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   logger.info('Profile request', { method: event.httpMethod, path: event.path });
@@ -36,6 +37,40 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const role = claims['custom:role'] as string;
     const ownerId = claims['custom:owner_id'] as string;
 
+    // ─── POST /me → update profile ───────────────────────
+    if (event.httpMethod === 'POST') {
+      if (!event.body) {
+        return buildErrorResponse(400, 'MISSING_BODY', 'Request body is required', ALLOWED_ORIGIN);
+      }
+
+      const updates = JSON.parse(event.body) as Record<string, unknown>;
+
+      // Allowlisted fields that can be updated
+      const allowed = ['name', 'aadhaar_last4', 'village', 'district', 'state', 'pincode'];
+      const ownerItem: Record<string, unknown> = {
+        owner_id: ownerId || userId,
+        user_id: userId,
+        phone_number: phoneNumber,
+        role: role || 'farmer',
+        updated_at: new Date().toISOString(),
+      };
+
+      for (const key of allowed) {
+        if (updates[key] !== undefined) {
+          ownerItem[key] = updates[key];
+        }
+      }
+
+      await ddbClient.send(new PutCommand({
+        TableName: OWNERS_TABLE,
+        Item: ownerItem,
+      }));
+
+      logger.info('Profile updated', { owner_id: ownerItem.owner_id });
+      return buildResponse(200, { message: 'Profile updated', owner: ownerItem }, ALLOWED_ORIGIN);
+    }
+
+    // ─── GET /me → fetch profile ─────────────────────────
     // Build profile from Cognito claims
     const profile: Record<string, unknown> = {
       user_id: userId,

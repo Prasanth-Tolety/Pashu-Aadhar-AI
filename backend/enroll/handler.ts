@@ -154,9 +154,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     return buildErrorResponse(400, 'MISSING_BODY', 'Request body is required', ALLOWED_ORIGIN);
   }
 
-  let body: { imageKey?: unknown };
+  let body: { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number };
   try {
-    body = JSON.parse(event.body) as { imageKey?: unknown };
+    body = JSON.parse(event.body) as { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number };
   } catch {
     return buildErrorResponse(400, 'INVALID_JSON', 'Invalid JSON in request body', ALLOWED_ORIGIN);
   }
@@ -213,16 +213,22 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // Also save to DynamoDB animals table
     const enrolledAt = new Date().toISOString();
+    const animalItem: Record<string, unknown> = {
+      livestock_id: newLivestockId,
+      image_key: imageKey,
+      enrolled_at: enrolledAt,
+      species: 'cattle',
+      status: 'active',
+    };
+    // Attach optional fields from request body
+    if (body.owner_id) animalItem.owner_id = body.owner_id;
+    if (typeof body.latitude === 'number') animalItem.latitude = body.latitude;
+    if (typeof body.longitude === 'number') animalItem.longitude = body.longitude;
+
     try {
       await ddbClient.send(new PutCommand({
         TableName: ANIMALS_TABLE,
-        Item: {
-          livestock_id: newLivestockId,
-          image_key: imageKey,
-          enrolled_at: enrolledAt,
-          species: 'cattle',
-          status: 'active',
-        },
+        Item: animalItem,
       }));
       logger.info('Animal record saved to DynamoDB', { livestock_id: newLivestockId });
     } catch (ddbErr) {

@@ -148,6 +148,8 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user_role_mapping/index/*'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/embeddings'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/embeddings/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/access_requests'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/access_requests/index/*'
 
   # API Gateway
   PashuAadhaarApi:
@@ -389,6 +391,14 @@ Resources:
             Method: GET
             Auth:
               Authorizer: CognitoAuth
+        UpdateProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /me
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
         ProfileOptions:
           Type: Api
           Properties:
@@ -405,6 +415,138 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - profile/handler.ts
+
+  # Access Requests Lambda
+  AccessRequestsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-access-requests-${Stage}'
+      CodeUri: backend/
+      Handler: access-requests/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Access request management - create, list, approve, deny
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        CreateAccessRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ListAccessRequests:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AccessRequestsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetIncomingRequests:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/incoming
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        IncomingRequestsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/incoming
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetAccessibleAnimals:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/animals
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AccessibleAnimalsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/animals
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        ResolveAccessRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/{id}/resolve
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ResolveAccessRequestOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/{id}/resolve
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - access-requests/handler.ts
+
+  # DynamoDB Table: Access Requests
+  AccessRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: access_requests
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: request_id
+          AttributeType: S
+        - AttributeName: owner_id
+          AttributeType: S
+        - AttributeName: requester_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: request_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: owner-index
+          KeySchema:
+            - AttributeName: owner_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: requester-index
+          KeySchema:
+            - AttributeName: requester_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
 Outputs:
   ApiUrl:
@@ -434,3 +576,7 @@ Outputs:
   ProfileFunctionArn:
     Description: Profile Lambda function ARN
     Value: !GetAtt ProfileFunction.Arn
+
+  AccessRequestsFunctionArn:
+    Description: Access Requests Lambda function ARN
+    Value: !GetAtt AccessRequestsFunction.Arn

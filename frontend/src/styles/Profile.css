@@ -1,0 +1,248 @@
+/* ─── Profile Page ────────────────────────────────────────────────── */
+.profile-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #333;
+}
+
+.back-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.back-link:hover { text-decoration: underline; }
+
+/* ─── ID Card ─────────────────────────────────────────────────────── */
+.id-card {
+  border-radius: 16px;
+  padding: 1.75rem;
+  color: white;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+.id-card-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.3);
+}
+
+.id-card-icon { font-size: 2.5rem; }
+
+.id-card-name {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.id-card-role {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.id-card-bottom {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.id-card-field { display: flex; flex-direction: column; }
+
+.id-card-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.75;
+  margin-bottom: 0.15rem;
+}
+
+.id-card-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+/* ─── Profile Section ─────────────────────────────────────────────── */
+.profile-section {
+  background: white;
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.profile-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.profile-section-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.edit-btn {
+  background: none;
+  border: 2px solid #667eea;
+  color: #667eea;
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.edit-btn:hover { background: #667eea; color: white; }
+
+/* ─── Info Grid ───────────────────────────────────────────────────── */
+.profile-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-row:last-child { border-bottom: none; }
+
+.info-row-label {
+  font-size: 0.88rem;
+  color: #888;
+  font-weight: 500;
+}
+
+.info-row-value {
+  font-size: 0.88rem;
+  color: #333;
+  font-weight: 600;
+}
+
+/* ─── Profile Form ────────────────────────────────────────────────── */
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.profile-form .form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.profile-form .form-group input {
+  padding: 0.65rem 0.85rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.profile-form .form-group input:focus {
+  border-color: #667eea;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.profile-form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.save-btn {
+  flex: 1;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.3); }
+.save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.cancel-btn {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  color: #666;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel-btn:hover { border-color: #999; }
+
+/* ─── Messages ────────────────────────────────────────────────────── */
+.profile-message {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.profile-message.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.profile-message.error {
+  background: #fee;
+  color: #c00;
+  border: 1px solid #fcc;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .profile-container { padding: 1rem; }
+  .id-card { padding: 1.25rem; }
+  .form-row { grid-template-columns: 1fr; }
+}

@@ -2,6 +2,51 @@
   padding-bottom: 32px;
 }
 
+.enrollment-notice {
+  background: #fff3e0;
+  color: #e65100;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ffe0b2;
+}
+
+.location-status {
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.location-ok {
+  color: #2e7d32;
+  background: #e8f5e9;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.location-warn {
+  color: #e65100;
+  background: #fff3e0;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.location-loading {
+  color: #1565c0;
+  background: #e3f2fd;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  display: inline-block;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .enrollment-error {
   display: flex;
   align-items: flex-start;
@@ -50,4 +95,92 @@
   left: 0;
   color: var(--primary);
   font-weight: 700;
+}
+
+/* ─── Post-enrollment animal form ─────────────────────── */
+.animal-detail-form {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.animal-detail-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.animal-detail-form label {
+  display: block;
+  font-weight: 600;
+  color: #444;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.animal-detail-form input,
+.animal-detail-form select,
+.animal-detail-form textarea {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.animal-detail-form input:focus,
+.animal-detail-form select:focus,
+.animal-detail-form textarea:focus {
+  border-color: #667eea;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+.location-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  text-align: center;
+}
+
+.form-actions {
+  margin-top: 1.5rem;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid #ccc;
+  color: #666;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.btn-outline:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+@media (max-width: 600px) {
+  .form-row-2,
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
 }

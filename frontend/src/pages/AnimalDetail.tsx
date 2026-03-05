@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { ROLE_CONFIG, UserRole } from '../types';
 import axios from 'axios';
 import '../styles/AnimalDetail.css';
 
@@ -21,6 +22,9 @@ interface Animal {
   owner_id?: string;
   enrolled_at?: string;
   image_key?: string;
+  latitude?: number;
+  longitude?: number;
+  status?: string;
 }
 
 interface HealthRecord {
@@ -41,10 +45,52 @@ interface MilkYield {
   total_yield: number;
 }
 
+// Role-based permissions config
+const ROLE_PERMISSIONS: Record<UserRole, {
+  canViewDetails: boolean;
+  canViewHealth: boolean;
+  canViewMilk: boolean;
+  canEditDetails: boolean;
+  canAddHealth: boolean;
+  canAddMilk: boolean;
+  canViewLocation: boolean;
+  canViewOwner: boolean;
+}> = {
+  farmer: {
+    canViewDetails: true, canViewHealth: true, canViewMilk: true,
+    canEditDetails: true, canAddHealth: true, canAddMilk: true,
+    canViewLocation: true, canViewOwner: true,
+  },
+  veterinarian: {
+    canViewDetails: true, canViewHealth: true, canViewMilk: false,
+    canEditDetails: false, canAddHealth: true, canAddMilk: false,
+    canViewLocation: false, canViewOwner: false,
+  },
+  insurer: {
+    canViewDetails: true, canViewHealth: true, canViewMilk: false,
+    canEditDetails: false, canAddHealth: false, canAddMilk: false,
+    canViewLocation: false, canViewOwner: false,
+  },
+  government: {
+    canViewDetails: true, canViewHealth: true, canViewMilk: true,
+    canEditDetails: false, canAddHealth: false, canAddMilk: false,
+    canViewLocation: true, canViewOwner: true,
+  },
+  admin: {
+    canViewDetails: true, canViewHealth: true, canViewMilk: true,
+    canEditDetails: true, canAddHealth: true, canAddMilk: true,
+    canViewLocation: true, canViewOwner: true,
+  },
+};
+
 export default function AnimalDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, idToken } = useAuth();
   const navigate = useNavigate();
+
+  const role = (user?.role || 'farmer') as UserRole;
+  const perms = ROLE_PERMISSIONS[role];
+  const roleConfig = ROLE_CONFIG[role];
 
   const [animal, setAnimal] = useState<Animal | null>(null);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
@@ -52,6 +98,10 @@ export default function AnimalDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'details' | 'health' | 'milk'>('details');
+
+  // Editing state for farmer/admin
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Animal>>({});
 
   // Health record form
   const [showHealthForm, setShowHealthForm] = useState(false);
@@ -86,6 +136,7 @@ export default function AnimalDetail() {
       ]);
 
       setAnimal(animalRes.data.animal);
+      setEditForm(animalRes.data.animal || {});
       setHealthRecords(healthRes.data.records || []);
       setMilkYields(milkRes.data.yields || []);
     } catch {
@@ -95,13 +146,22 @@ export default function AnimalDetail() {
     }
   };
 
+  const handleSaveDetails = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/animals/${id}`, editForm, { headers });
+      setAnimal({ ...animal!, ...editForm });
+      setEditing(false);
+    } catch {
+      alert('Failed to update animal details');
+    }
+  };
+
   const handleAddHealthRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await axios.post(`${API_BASE_URL}/animals/${id}/health`, healthForm, { headers });
       setShowHealthForm(false);
       setHealthForm({ record_type: 'vaccination', vaccine_type: '', notes: '', record_date: new Date().toISOString().split('T')[0] });
-      // Refresh health records
       const res = await axios.get(`${API_BASE_URL}/animals/${id}/health`, { headers });
       setHealthRecords(res.data.records || []);
     } catch {
@@ -144,38 +204,45 @@ export default function AnimalDetail() {
     );
   }
 
-  const isFarmer = user?.role === 'farmer';
-  const isVet = user?.role === 'veterinarian';
-
   return (
     <div className="detail-container">
       {/* Header */}
       <header className="detail-header">
         <Link to="/dashboard" className="back-link">← Dashboard</Link>
         <h1>Animal Profile</h1>
+        <span className="role-chip" style={{ background: roleConfig.color + '22', color: roleConfig.color }}>
+          {roleConfig.icon} {roleConfig.label}
+        </span>
       </header>
 
       {/* Animal ID Banner */}
-      <div className="id-banner">
+      <div className="id-banner" style={{ background: roleConfig.gradient }}>
         <span className="id-label">Livestock ID</span>
         <span className="id-value-large">{animal.livestock_id}</span>
+        {animal.status && (
+          <span className={`animal-status status-${animal.status}`}>{animal.status}</span>
+        )}
       </div>
 
       {/* Tabs */}
       <div className="tabs">
-        <button
-          className={`tab ${activeTab === 'details' ? 'active' : ''}`}
-          onClick={() => setActiveTab('details')}
-        >
-          📋 Details
-        </button>
-        <button
-          className={`tab ${activeTab === 'health' ? 'active' : ''}`}
-          onClick={() => setActiveTab('health')}
-        >
-          💉 Health ({healthRecords.length})
-        </button>
-        {isFarmer && (
+        {perms.canViewDetails && (
+          <button
+            className={`tab ${activeTab === 'details' ? 'active' : ''}`}
+            onClick={() => setActiveTab('details')}
+          >
+            📋 Details
+          </button>
+        )}
+        {perms.canViewHealth && (
+          <button
+            className={`tab ${activeTab === 'health' ? 'active' : ''}`}
+            onClick={() => setActiveTab('health')}
+          >
+            💉 Health ({healthRecords.length})
+          </button>
+        )}
+        {perms.canViewMilk && (
           <button
             className={`tab ${activeTab === 'milk' ? 'active' : ''}`}
             onClick={() => setActiveTab('milk')}
@@ -187,28 +254,101 @@ export default function AnimalDetail() {
 
       {/* Tab Content */}
       <div className="tab-content">
-        {activeTab === 'details' && (
+        {activeTab === 'details' && perms.canViewDetails && (
           <div className="details-tab">
-            <div className="info-grid">
-              <InfoItem label="Species" value={animal.species} />
-              <InfoItem label="Breed" value={animal.breed} />
-              <InfoItem label="Gender" value={animal.gender} />
-              <InfoItem label="Age" value={animal.age_months ? `${Math.floor(animal.age_months / 12)} years ${animal.age_months % 12} months` : undefined} />
-              <InfoItem label="Color/Pattern" value={animal.color_pattern} />
-              <InfoItem label="Horn Type" value={animal.horn_type} />
-              <InfoItem label="Identifiable Marks" value={animal.identifiable_marks} />
-              <InfoItem label="Village" value={animal.village} />
-              <InfoItem label="District" value={animal.district} />
-              <InfoItem label="State" value={animal.state} />
-              <InfoItem label="Owner ID" value={animal.owner_id} />
-              <InfoItem label="Enrolled" value={animal.enrolled_at ? new Date(animal.enrolled_at).toLocaleDateString('en-IN') : undefined} />
-            </div>
+            {perms.canEditDetails && !editing && (
+              <button className="edit-details-btn" onClick={() => setEditing(true)}>✏️ Edit Details</button>
+            )}
+            {editing ? (
+              <div className="edit-details-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Species</label>
+                    <select value={editForm.species || ''} onChange={(e) => setEditForm({ ...editForm, species: e.target.value })}>
+                      <option value="cattle">Cattle</option>
+                      <option value="buffalo">Buffalo</option>
+                      <option value="goat">Goat</option>
+                      <option value="sheep">Sheep</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Breed</label>
+                    <input value={editForm.breed || ''} onChange={(e) => setEditForm({ ...editForm, breed: e.target.value })} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Gender</label>
+                    <select value={editForm.gender || ''} onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}>
+                      <option value="">Select</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Age (months)</label>
+                    <input type="number" value={editForm.age_months || ''} onChange={(e) => setEditForm({ ...editForm, age_months: parseInt(e.target.value) || 0 })} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Color/Pattern</label>
+                    <input value={editForm.color_pattern || ''} onChange={(e) => setEditForm({ ...editForm, color_pattern: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Horn Type</label>
+                    <input value={editForm.horn_type || ''} onChange={(e) => setEditForm({ ...editForm, horn_type: e.target.value })} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Identifiable Marks</label>
+                  <textarea value={editForm.identifiable_marks || ''} onChange={(e) => setEditForm({ ...editForm, identifiable_marks: e.target.value })} rows={2} />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Village</label>
+                    <input value={editForm.village || ''} onChange={(e) => setEditForm({ ...editForm, village: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>District</label>
+                    <input value={editForm.district || ''} onChange={(e) => setEditForm({ ...editForm, district: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>State</label>
+                    <input value={editForm.state || ''} onChange={(e) => setEditForm({ ...editForm, state: e.target.value })} />
+                  </div>
+                </div>
+                <div className="edit-actions">
+                  <button className="submit-btn" onClick={handleSaveDetails}>💾 Save</button>
+                  <button className="cancel-btn" onClick={() => { setEditing(false); setEditForm(animal); }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div className="info-grid">
+                <InfoItem label="Species" value={animal.species} />
+                <InfoItem label="Breed" value={animal.breed} />
+                <InfoItem label="Gender" value={animal.gender} />
+                <InfoItem label="Age" value={animal.age_months ? `${Math.floor(animal.age_months / 12)} years ${animal.age_months % 12} months` : undefined} />
+                <InfoItem label="Color/Pattern" value={animal.color_pattern} />
+                <InfoItem label="Horn Type" value={animal.horn_type} />
+                <InfoItem label="Identifiable Marks" value={animal.identifiable_marks} />
+                <InfoItem label="Village" value={animal.village} />
+                <InfoItem label="District" value={animal.district} />
+                <InfoItem label="State" value={animal.state} />
+                {perms.canViewOwner && <InfoItem label="Owner ID" value={animal.owner_id} />}
+                <InfoItem label="Enrolled" value={animal.enrolled_at ? new Date(animal.enrolled_at).toLocaleDateString('en-IN') : undefined} />
+                {perms.canViewLocation && animal.latitude && (
+                  <InfoItem label="GPS Location" value={`${animal.latitude.toFixed(4)}, ${animal.longitude?.toFixed(4)}`} />
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {activeTab === 'health' && (
+        {activeTab === 'health' && perms.canViewHealth && (
           <div className="health-tab">
-            {(isVet || isFarmer) && (
+            {perms.canAddHealth && (
               <button
                 onClick={() => setShowHealthForm(!showHealthForm)}
                 className="add-record-btn"
@@ -296,9 +436,9 @@ export default function AnimalDetail() {
           </div>
         )}
 
-        {activeTab === 'milk' && (
+        {activeTab === 'milk' && perms.canViewMilk && (
           <div className="milk-tab">
-            {isFarmer && (
+            {perms.canAddMilk && (
               <button
                 onClick={() => setShowMilkForm(!showMilkForm)}
                 className="add-record-btn"

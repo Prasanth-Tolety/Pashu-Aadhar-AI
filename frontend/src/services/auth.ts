@@ -5,6 +5,7 @@ import {
   CognitoUserSession,
   CognitoUserAttribute,
 } from 'amazon-cognito-identity-js';
+import type { UserRole } from '../types';
 
 const USER_POOL_ID = import.meta.env.VITE_COGNITO_USER_POOL_ID || 'us-east-1_NPYiBsfST';
 const CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID || '2jdbhaq7do5j6soq8hod741bk5';
@@ -18,7 +19,7 @@ export interface AuthUser {
   userId: string;
   phoneNumber: string;
   name: string;
-  role: string;
+  role: UserRole;
   ownerId: string | null;
 }
 
@@ -33,14 +34,13 @@ function extractUserFromSession(session: CognitoUserSession): AuthUser {
     userId: payload.sub,
     phoneNumber: payload.phone_number || '',
     name: payload.name || '',
-    role: payload['custom:role'] || 'farmer',
+    role: (payload['custom:role'] || 'farmer') as UserRole,
     ownerId: payload['custom:owner_id'] || null,
   };
 }
 
 /**
  * Sign in with phone number and password.
- * Returns a NEW_PASSWORD_REQUIRED challenge if temp password.
  */
 export function signIn(
   phoneNumber: string,
@@ -72,7 +72,7 @@ export function signIn(
 }
 
 /**
- * Complete new password challenge (for first login with temp password).
+ * Complete new password challenge.
  */
 export function completeNewPassword(
   cognitoUser: CognitoUser,
@@ -140,20 +140,69 @@ export function signOut(): void {
 }
 
 /**
- * Sign up a new user (for admin use / future self-registration).
+ * Sign up a new user with role selection.
  */
 export function signUp(
   phoneNumber: string,
   password: string,
-  name: string
+  name: string,
+  role: UserRole = 'farmer',
+  aadhaarLast4?: string
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const attributes = [
       new CognitoUserAttribute({ Name: 'phone_number', Value: phoneNumber }),
       new CognitoUserAttribute({ Name: 'name', Value: name }),
+      new CognitoUserAttribute({ Name: 'custom:role', Value: role }),
     ];
 
+    if (aadhaarLast4) {
+      attributes.push(
+        new CognitoUserAttribute({ Name: 'custom:aadhaar_last4', Value: aadhaarLast4 })
+      );
+    }
+
     userPool.signUp(phoneNumber, password, attributes, [], (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/**
+ * Confirm signup with OTP/verification code.
+ */
+export function confirmSignUp(phoneNumber: string, code: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cognitoUser = new CognitoUser({
+      Username: phoneNumber,
+      Pool: userPool,
+    });
+
+    cognitoUser.confirmRegistration(code, true, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/**
+ * Resend confirmation code.
+ */
+export function resendConfirmationCode(phoneNumber: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cognitoUser = new CognitoUser({
+      Username: phoneNumber,
+      Pool: userPool,
+    });
+
+    cognitoUser.resendConfirmationCode((err) => {
       if (err) {
         reject(err);
         return;

@@ -351,6 +351,180 @@
   text-decoration: underline;
 }
 
+/* ─── User Display ID ─────────────────────────────────────────────── */
+.user-display-id {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #999;
+  font-weight: 600;
+}
+
+.header-brand {
+  text-decoration: none;
+  color: #333;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.profile-link {
+  text-decoration: none;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.8rem;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.profile-link:hover {
+  background: #667eea;
+  color: white;
+}
+
+.profile-action {
+  background: white;
+  color: #333;
+  border: 2px solid #e0e0e0;
+}
+
+/* ─── Access Request Section ──────────────────────────────────────── */
+.access-request-section,
+.incoming-requests-section {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.access-request-section h2,
+.incoming-requests-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.section-note {
+  color: #888;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.access-request-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.request-message {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #f0f7ff;
+  color: #333;
+}
+
+/* ─── Request Cards ───────────────────────────────────────────────── */
+.requests-list {
+  margin-top: 1.25rem;
+}
+
+.requests-list h3 {
+  font-size: 1rem;
+  color: #555;
+  margin: 0 0 0.75rem;
+}
+
+.request-card {
+  padding: 1rem;
+  border-radius: 10px;
+  background: #fafbff;
+  border: 1px solid #e8e8ee;
+  margin-bottom: 0.6rem;
+}
+
+.request-card.incoming {
+  border-left: 4px solid #667eea;
+}
+
+.request-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.request-livestock {
+  font-family: monospace;
+  font-weight: 700;
+  color: #667eea;
+  font-size: 0.9rem;
+}
+
+.request-requester {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.request-status {
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.badge-pending { background: #fff3e0; color: #e65100; }
+.badge-approved { background: #e8f5e9; color: #2e7d32; }
+.badge-denied { background: #fee; color: #c00; }
+
+.request-reason {
+  margin: 0.4rem 0;
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+}
+
+.request-date {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.approve-btn,
+.deny-btn {
+  padding: 0.45rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.approve-btn { background: #e8f5e9; color: #2e7d32; }
+.approve-btn:hover { background: #c8e6c9; }
+.deny-btn { background: #fee; color: #c00; }
+.deny-btn:hover { background: #fcc; }
+
+.accessible-animals {
+  margin-top: 1.5rem;
+}
+
+.accessible-animals h3 {
+  font-size: 1rem;
+  color: #333;
+  margin: 0 0 0.75rem;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .dashboard-header {

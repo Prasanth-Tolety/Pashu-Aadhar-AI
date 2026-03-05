@@ -344,6 +344,114 @@
   cursor: pointer;
 }
 
+/* Role chip in header */
+.role-chip {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Status badge on banner */
+.animal-status {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.status-active {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.status-inactive {
+  background: rgba(255,0,0,0.2);
+  color: #ffcdd2;
+}
+
+/* Edit details button & form */
+.edit-details-btn {
+  padding: 0.5rem 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background 0.2s;
+}
+
+.edit-details-btn:hover {
+  background: #5569d6;
+}
+
+.edit-details-form {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.edit-details-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.edit-details-form label {
+  display: block;
+  font-weight: 600;
+  color: #444;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.edit-details-form input,
+.edit-details-form select,
+.edit-details-form textarea {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.edit-details-form input:focus,
+.edit-details-form select:focus,
+.edit-details-form textarea:focus {
+  border-color: #667eea;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.cancel-btn {
+  padding: 0.7rem 1.5rem;
+  background: #eee;
+  color: #666;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #ddd;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .detail-header {
@@ -367,5 +475,9 @@
     padding: 0.75rem 1rem;
     font-size: 0.85rem;
     white-space: nowrap;
+  }
+
+  .edit-details-form .form-row {
+    flex-direction: column;
   }
 }

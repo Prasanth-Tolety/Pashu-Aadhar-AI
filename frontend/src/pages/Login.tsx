@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import '../styles/Login.css';
+import { ROLE_CONFIG, UserRole } from '../types';
+import '../styles/Auth.css';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,8 +30,6 @@ export default function Login() {
 
     try {
       await login(formatPhoneNumber(phoneNumber), password);
-      // If we don't need new password, navigate to dashboard
-      // The auth context will update and trigger re-render
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);
@@ -67,28 +66,41 @@ export default function Login() {
 
   if (authLoading) {
     return (
-      <div className="login-container">
-        <div className="login-card">
+      <div className="auth-container">
+        <div className="auth-card">
           <div className="loading-spinner" />
-          <p>Loading...</p>
+          <p style={{ textAlign: 'center', marginTop: '1rem' }}>Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
           <h1>🐄 पशु आधार</h1>
           <h2>Pashu Aadhaar AI</h2>
-          <p className="login-subtitle">Livestock Identification System</p>
+          <p className="auth-subtitle">Livestock Identification System</p>
         </div>
 
-        {error && <div className="login-error">{error}</div>}
+        {/* Role legend pills */}
+        <div className="role-pills">
+          {(Object.keys(ROLE_CONFIG) as UserRole[]).map((role) => (
+            <span
+              key={role}
+              className="role-pill"
+              style={{ background: ROLE_CONFIG[role].color }}
+            >
+              {ROLE_CONFIG[role].icon} {ROLE_CONFIG[role].prefix}
+            </span>
+          ))}
+        </div>
+
+        {error && <div className="auth-error">{error}</div>}
 
         {needsNewPassword ? (
-          <form onSubmit={handleNewPassword} className="login-form">
+          <form onSubmit={handleNewPassword} className="auth-form">
             <p className="password-change-notice">
               ⚠️ Please set a new password for your account
             </p>
@@ -116,12 +128,12 @@ export default function Login() {
                 minLength={8}
               />
             </div>
-            <button type="submit" className="login-btn" disabled={loading}>
+            <button type="submit" className="auth-btn" disabled={loading}>
               {loading ? 'Setting password...' : 'Set New Password'}
             </button>
           </form>
         ) : (
-          <form onSubmit={handleLogin} className="login-form">
+          <form onSubmit={handleLogin} className="auth-form">
             <div className="form-group">
               <label htmlFor="phone">Phone Number</label>
               <div className="phone-input-wrapper">
@@ -149,14 +161,15 @@ export default function Login() {
                 required
               />
             </div>
-            <button type="submit" className="login-btn" disabled={loading}>
+            <button type="submit" className="auth-btn" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
         )}
 
-        <div className="login-footer">
-          <p>Designed for rural India 🇮🇳</p>
+        <div className="auth-footer">
+          Don't have an account?{' '}
+          <Link to="/signup" className="auth-footer-link">Create Account</Link>
         </div>
       </div>
     </div>
