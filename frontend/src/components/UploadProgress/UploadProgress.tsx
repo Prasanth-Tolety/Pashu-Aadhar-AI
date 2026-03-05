@@ -1,3 +1,4 @@
+import { useLanguage } from '../../context/LanguageContext';
 import './UploadProgress.css';
 
 interface UploadProgressProps {
@@ -6,6 +7,7 @@ interface UploadProgressProps {
 }
 
 export default function UploadProgress({ progress, status }: UploadProgressProps) {
+  const { t } = useLanguage();
   return (
     <div className="upload-progress">
       <div className="progress-icon">
@@ -13,8 +15,8 @@ export default function UploadProgress({ progress, status }: UploadProgressProps
       </div>
       <p className="progress-label">
         {status === 'uploading'
-          ? `Uploading image... ${progress}%`
-          : 'Analyzing animal biometrics...'}
+          ? `${t.uploadingImage}... ${progress}%`
+          : t.analyzingBiometrics}
       </p>
       {status === 'uploading' ? (
         <div className="progress-bar-container" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>

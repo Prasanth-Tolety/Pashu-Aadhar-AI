@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { ROLE_CONFIG, UserRole } from '../types';
 import axios from 'axios';
 import '../styles/AnimalDetail.css';
@@ -127,6 +128,7 @@ const ROLE_PERMISSIONS: Record<UserRole, {
 export default function AnimalDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, idToken } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const role = (user?.role || 'farmer') as UserRole;
@@ -210,7 +212,7 @@ export default function AnimalDetail() {
       setInsurancePolicies(insuranceRes.data.policies || []);
       setLoanRecords(loansRes.data.loans || []);
     } catch {
-      setError('Failed to load animal data');
+      setError(t.failedToLoadAnimal);
     } finally {
       setLoading(false);
     }
@@ -222,7 +224,7 @@ export default function AnimalDetail() {
       setAnimal({ ...animal!, ...editForm });
       setEditing(false);
     } catch {
-      alert('Failed to update animal details');
+      alert(t.failedToUpdateAnimal);
     }
   };
 
@@ -235,7 +237,7 @@ export default function AnimalDetail() {
       const res = await axios.get(`${API_BASE_URL}/animals/${id}/health`, { headers });
       setHealthRecords(res.data.records || []);
     } catch {
-      alert('Failed to add health record');
+      alert(t.failedToAddHealth);
     }
   };
 
@@ -248,7 +250,7 @@ export default function AnimalDetail() {
       const res = await axios.get(`${API_BASE_URL}/animals/${id}/milk`, { headers });
       setMilkYields(res.data.yields || []);
     } catch {
-      alert('Failed to add milk yield');
+      alert(t.failedToAddMilk);
     }
   };
 
@@ -261,7 +263,7 @@ export default function AnimalDetail() {
       const res = await axios.get(`${API_BASE_URL}/animals/${id}/insurance`, { headers });
       setInsurancePolicies(res.data.policies || []);
     } catch {
-      alert('Failed to add insurance policy');
+      alert(t.failedToAddInsurance);
     }
   };
 
@@ -274,7 +276,7 @@ export default function AnimalDetail() {
       const res = await axios.get(`${API_BASE_URL}/animals/${id}/loans`, { headers });
       setLoanRecords(res.data.loans || []);
     } catch {
-      alert('Failed to add loan record');
+      alert(t.failedToAddLoan);
     }
   };
 
@@ -283,7 +285,7 @@ export default function AnimalDetail() {
       <div className="detail-container">
         <div className="loading-state">
           <div className="loading-spinner" />
-          <p>Loading animal data...</p>
+          <p>{t.loadingAnimalData}</p>
         </div>
       </div>
     );
@@ -293,8 +295,8 @@ export default function AnimalDetail() {
     return (
       <div className="detail-container">
         <div className="error-state">
-          <p>{error || 'Animal not found'}</p>
-          <button onClick={() => navigate('/dashboard')} className="back-btn">← Back to Dashboard</button>
+          <p>{error || t.animalNotFoundError}</p>
+          <button onClick={() => navigate('/dashboard')} className="back-btn">{t.backToDashboard}</button>
         </div>
       </div>
     );
@@ -304,8 +306,8 @@ export default function AnimalDetail() {
     <div className="detail-container">
       {/* Header */}
       <header className="detail-header">
-        <Link to="/dashboard" className="back-link">← Dashboard</Link>
-        <h1>Animal Profile</h1>
+        <Link to="/dashboard" className="back-link">{t.backToDashboard}</Link>
+        <h1>{t.animalProfile}</h1>
         <span className="role-chip" style={{ background: roleConfig.color + '22', color: roleConfig.color }}>
           {roleConfig.icon} {roleConfig.label}
         </span>
@@ -313,7 +315,7 @@ export default function AnimalDetail() {
 
       {/* Animal ID Banner */}
       <div className="id-banner" style={{ background: roleConfig.gradient }}>
-        <span className="id-label">Livestock ID</span>
+        <span className="id-label">{t.livestockId}</span>
         <span className="id-value-large">{animal.livestock_id}</span>
         {animal.status && (
           <span className={`animal-status status-${animal.status}`}>{animal.status}</span>
@@ -324,27 +326,27 @@ export default function AnimalDetail() {
       <div className="tabs">
         {perms.canViewDetails && (
           <button className={`tab ${activeTab === 'details' ? 'active' : ''}`} onClick={() => setActiveTab('details')}>
-            📋 Details
+            📋 {t.details}
           </button>
         )}
         {perms.canViewHealth && (
           <button className={`tab ${activeTab === 'health' ? 'active' : ''}`} onClick={() => setActiveTab('health')}>
-            💉 Health ({healthRecords.length})
+            💉 {t.health} ({healthRecords.length})
           </button>
         )}
         {perms.canViewMilk && (
           <button className={`tab ${activeTab === 'milk' ? 'active' : ''}`} onClick={() => setActiveTab('milk')}>
-            🥛 Milk ({milkYields.length})
+            🥛 {t.milk} ({milkYields.length})
           </button>
         )}
         {perms.canViewInsurance && (
           <button className={`tab ${activeTab === 'insurance' ? 'active' : ''}`} onClick={() => setActiveTab('insurance')}>
-            🛡️ Insurance ({insurancePolicies.length})
+            🛡️ {t.insurance} ({insurancePolicies.length})
           </button>
         )}
         {perms.canViewLoans && (
           <button className={`tab ${activeTab === 'loans' ? 'active' : ''}`} onClick={() => setActiveTab('loans')}>
-            💰 Loans ({loanRecords.length})
+            💰 {t.loans} ({loanRecords.length})
           </button>
         )}
       </div>
@@ -354,89 +356,89 @@ export default function AnimalDetail() {
         {activeTab === 'details' && perms.canViewDetails && (
           <div className="details-tab">
             {perms.canEditDetails && !editing && (
-              <button className="edit-details-btn" onClick={() => setEditing(true)}>✏️ Edit Details</button>
+              <button className="edit-details-btn" onClick={() => setEditing(true)}>✏️ {t.editDetails}</button>
             )}
             {editing ? (
               <div className="edit-details-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Species</label>
+                    <label>{t.speciesLabel}</label>
                     <select value={editForm.species || ''} onChange={(e) => setEditForm({ ...editForm, species: e.target.value })}>
-                      <option value="cattle">Cattle</option>
-                      <option value="buffalo">Buffalo</option>
-                      <option value="goat">Goat</option>
-                      <option value="sheep">Sheep</option>
-                      <option value="other">Other</option>
+                      <option value="cattle">{t.cattle}</option>
+                      <option value="buffalo">{t.buffalo}</option>
+                      <option value="goat">{t.goat}</option>
+                      <option value="sheep">{t.sheep}</option>
+                      <option value="other">{t.other}</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Breed</label>
+                    <label>{t.breedLabel}</label>
                     <input value={editForm.breed || ''} onChange={(e) => setEditForm({ ...editForm, breed: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Gender</label>
+                    <label>{t.genderLabel}</label>
                     <select value={editForm.gender || ''} onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}>
-                      <option value="">Select</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
+                      <option value="">{t.selectGender}</option>
+                      <option value="male">{t.male}</option>
+                      <option value="female">{t.female}</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Age (months)</label>
+                    <label>{t.ageMonths}</label>
                     <input type="number" value={editForm.age_months || ''} onChange={(e) => setEditForm({ ...editForm, age_months: parseInt(e.target.value) || 0 })} />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Color/Pattern</label>
+                    <label>{t.colorPattern}</label>
                     <input value={editForm.color_pattern || ''} onChange={(e) => setEditForm({ ...editForm, color_pattern: e.target.value })} />
                   </div>
                   <div className="form-group">
-                    <label>Horn Type</label>
+                    <label>{t.hornType}</label>
                     <input value={editForm.horn_type || ''} onChange={(e) => setEditForm({ ...editForm, horn_type: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Identifiable Marks</label>
+                  <label>{t.identifiableMarks}</label>
                   <textarea value={editForm.identifiable_marks || ''} onChange={(e) => setEditForm({ ...editForm, identifiable_marks: e.target.value })} rows={2} />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Village</label>
+                    <label>{t.village}</label>
                     <input value={editForm.village || ''} onChange={(e) => setEditForm({ ...editForm, village: e.target.value })} />
                   </div>
                   <div className="form-group">
-                    <label>District</label>
+                    <label>{t.district}</label>
                     <input value={editForm.district || ''} onChange={(e) => setEditForm({ ...editForm, district: e.target.value })} />
                   </div>
                   <div className="form-group">
-                    <label>State</label>
+                    <label>{t.state}</label>
                     <input value={editForm.state || ''} onChange={(e) => setEditForm({ ...editForm, state: e.target.value })} />
                   </div>
                 </div>
                 <div className="edit-actions">
-                  <button className="submit-btn" onClick={handleSaveDetails}>💾 Save</button>
-                  <button className="cancel-btn" onClick={() => { setEditing(false); setEditForm(animal); }}>Cancel</button>
+                  <button className="submit-btn" onClick={handleSaveDetails}>💾 {t.save}</button>
+                  <button className="cancel-btn" onClick={() => { setEditing(false); setEditForm(animal); }}>{t.cancel}</button>
                 </div>
               </div>
             ) : (
               <div className="info-grid">
-                <InfoItem label="Species" value={animal.species} />
-                <InfoItem label="Breed" value={animal.breed} />
-                <InfoItem label="Gender" value={animal.gender} />
-                <InfoItem label="Age" value={animal.age_months ? `${Math.floor(animal.age_months / 12)} years ${animal.age_months % 12} months` : undefined} />
-                <InfoItem label="Color/Pattern" value={animal.color_pattern} />
-                <InfoItem label="Horn Type" value={animal.horn_type} />
-                <InfoItem label="Identifiable Marks" value={animal.identifiable_marks} />
-                <InfoItem label="Village" value={animal.village} />
-                <InfoItem label="District" value={animal.district} />
-                <InfoItem label="State" value={animal.state} />
-                {perms.canViewOwner && <InfoItem label="Owner ID" value={animal.owner_id} />}
-                <InfoItem label="Enrolled" value={animal.enrolled_at ? new Date(animal.enrolled_at).toLocaleDateString('en-IN') : undefined} />
+                <InfoItem label={t.speciesLabel} value={animal.species} />
+                <InfoItem label={t.breedLabel} value={animal.breed} />
+                <InfoItem label={t.genderLabel} value={animal.gender} />
+                <InfoItem label={t.age} value={animal.age_months ? `${Math.floor(animal.age_months / 12)} years ${animal.age_months % 12} months` : undefined} />
+                <InfoItem label={t.colorPattern} value={animal.color_pattern} />
+                <InfoItem label={t.hornType} value={animal.horn_type} />
+                <InfoItem label={t.identifiableMarks} value={animal.identifiable_marks} />
+                <InfoItem label={t.village} value={animal.village} />
+                <InfoItem label={t.district} value={animal.district} />
+                <InfoItem label={t.state} value={animal.state} />
+                {perms.canViewOwner && <InfoItem label={t.ownerId} value={animal.owner_id} />}
+                <InfoItem label={t.enrolled} value={animal.enrolled_at ? new Date(animal.enrolled_at).toLocaleDateString('en-IN') : undefined} />
                 {perms.canViewLocation && animal.latitude && (
-                  <InfoItem label="GPS Location" value={`${animal.latitude.toFixed(4)}, ${animal.longitude?.toFixed(4)}`} />
+                  <InfoItem label={t.gpsLocation} value={`${animal.latitude.toFixed(4)}, ${animal.longitude?.toFixed(4)}`} />
                 )}
               </div>
             )}
@@ -450,7 +452,7 @@ export default function AnimalDetail() {
                 onClick={() => setShowHealthForm(!showHealthForm)}
                 className="add-record-btn"
               >
-                {showHealthForm ? 'Cancel' : '+ Add Health Record'}
+                {showHealthForm ? t.cancel : `+ ${t.addHealthRecord}`}
               </button>
             )}
 
@@ -458,19 +460,19 @@ export default function AnimalDetail() {
               <form onSubmit={handleAddHealthRecord} className="record-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Type</label>
+                    <label>{t.type}</label>
                     <select
                       value={healthForm.record_type}
                       onChange={(e) => setHealthForm({ ...healthForm, record_type: e.target.value })}
                     >
-                      <option value="vaccination">Vaccination</option>
-                      <option value="checkup">Checkup</option>
-                      <option value="treatment">Treatment</option>
-                      <option value="deworming">Deworming</option>
+                      <option value="vaccination">{t.vaccination}</option>
+                      <option value="checkup">{t.checkup}</option>
+                      <option value="treatment">{t.treatment}</option>
+                      <option value="deworming">{t.deworming}</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Date</label>
+                    <label>{t.date}</label>
                     <input
                       type="date"
                       value={healthForm.record_date}
@@ -480,7 +482,7 @@ export default function AnimalDetail() {
                 </div>
                 {healthForm.record_type === 'vaccination' && (
                   <div className="form-group">
-                    <label>Vaccine</label>
+                    <label>{t.vaccine}</label>
                     <input
                       type="text"
                       value={healthForm.vaccine_type}
@@ -490,7 +492,7 @@ export default function AnimalDetail() {
                   </div>
                 )}
                 <div className="form-group">
-                  <label>Notes</label>
+                  <label>{t.notes}</label>
                   <textarea
                     value={healthForm.notes}
                     onChange={(e) => setHealthForm({ ...healthForm, notes: e.target.value })}
@@ -498,12 +500,12 @@ export default function AnimalDetail() {
                     rows={3}
                   />
                 </div>
-                <button type="submit" className="submit-btn">Save Record</button>
+                <button type="submit" className="submit-btn">{t.saveRecord}</button>
               </form>
             )}
 
             {healthRecords.length === 0 ? (
-              <div className="empty-records">No health records yet</div>
+              <div className="empty-records">{t.noHealthRecords}</div>
             ) : (
               <div className="records-list">
                 {healthRecords.map((record) => (
@@ -515,16 +517,16 @@ export default function AnimalDetail() {
                       <span className="record-date">{record.record_date}</span>
                     </div>
                     {record.vaccine_type && (
-                      <p className="record-detail"><strong>Vaccine:</strong> {record.vaccine_type}</p>
+                      <p className="record-detail"><strong>{t.vaccine}:</strong> {record.vaccine_type}</p>
                     )}
                     {record.administered_by && (
-                      <p className="record-detail"><strong>By:</strong> {record.administered_by}</p>
+                      <p className="record-detail"><strong>{t.by}:</strong> {record.administered_by}</p>
                     )}
                     {record.notes && (
                       <p className="record-detail">{record.notes}</p>
                     )}
                     {record.next_due_date && (
-                      <p className="record-due">Next due: {record.next_due_date}</p>
+                      <p className="record-due">{t.nextDue}: {record.next_due_date}</p>
                     )}
                   </div>
                 ))}
@@ -540,7 +542,7 @@ export default function AnimalDetail() {
                 onClick={() => setShowMilkForm(!showMilkForm)}
                 className="add-record-btn"
               >
-                {showMilkForm ? 'Cancel' : '+ Add Milk Yield'}
+                {showMilkForm ? t.cancel : `+ ${t.addMilkRecord}`}
               </button>
             )}
 
@@ -548,7 +550,7 @@ export default function AnimalDetail() {
               <form onSubmit={handleAddMilkYield} className="record-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Date</label>
+                    <label>{t.date}</label>
                     <input
                       type="date"
                       value={milkForm.yield_date}
@@ -556,7 +558,7 @@ export default function AnimalDetail() {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Morning (litres)</label>
+                    <label>{t.morningYield}</label>
                     <input
                       type="number"
                       step="0.1"
@@ -566,7 +568,7 @@ export default function AnimalDetail() {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Evening (litres)</label>
+                    <label>{t.eveningYield}</label>
                     <input
                       type="number"
                       step="0.1"
@@ -576,21 +578,21 @@ export default function AnimalDetail() {
                     />
                   </div>
                 </div>
-                <button type="submit" className="submit-btn">Save Yield</button>
+                <button type="submit" className="submit-btn">{t.saveYield}</button>
               </form>
             )}
 
             {milkYields.length === 0 ? (
-              <div className="empty-records">No milk yield records yet</div>
+              <div className="empty-records">{t.noMilkRecords}</div>
             ) : (
               <div className="milk-table-wrapper">
                 <table className="milk-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Morning (L)</th>
-                      <th>Evening (L)</th>
-                      <th>Total (L)</th>
+                      <th>{t.date}</th>
+                      <th>{t.morningL}</th>
+                      <th>{t.eveningL}</th>
+                      <th>{t.totalL}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -614,7 +616,7 @@ export default function AnimalDetail() {
           <div className="insurance-tab tab-panel-anim">
             {perms.canAddInsurance && (
               <button onClick={() => setShowInsuranceForm(!showInsuranceForm)} className="add-record-btn">
-                {showInsuranceForm ? 'Cancel' : '+ Add Insurance Policy'}
+                {showInsuranceForm ? t.cancel : `+ ${t.addInsurance}`}
               </button>
             )}
 
@@ -622,46 +624,46 @@ export default function AnimalDetail() {
               <form onSubmit={handleAddInsurance} className="record-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Provider</label>
+                    <label>{t.provider}</label>
                     <input type="text" value={insuranceForm.provider} onChange={(e) => setInsuranceForm({ ...insuranceForm, provider: e.target.value })} placeholder="e.g., IFFCO Tokio" required />
                   </div>
                   <div className="form-group">
-                    <label>Policy Number</label>
+                    <label>{t.policyNumber}</label>
                     <input type="text" value={insuranceForm.policy_number} onChange={(e) => setInsuranceForm({ ...insuranceForm, policy_number: e.target.value })} placeholder="POL-XXXX" />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Coverage Amount (₹)</label>
+                    <label>{t.coverageAmount} (₹)</label>
                     <input type="number" value={insuranceForm.coverage_amount} onChange={(e) => setInsuranceForm({ ...insuranceForm, coverage_amount: e.target.value })} placeholder="50000" required />
                   </div>
                   <div className="form-group">
-                    <label>Premium (₹)</label>
+                    <label>{t.premium} (₹)</label>
                     <input type="number" value={insuranceForm.premium} onChange={(e) => setInsuranceForm({ ...insuranceForm, premium: e.target.value })} placeholder="1200" />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Start Date</label>
+                    <label>{t.startDate}</label>
                     <input type="date" value={insuranceForm.start_date} onChange={(e) => setInsuranceForm({ ...insuranceForm, start_date: e.target.value })} />
                   </div>
                   <div className="form-group">
-                    <label>End Date</label>
+                    <label>{t.endDate}</label>
                     <input type="date" value={insuranceForm.end_date} onChange={(e) => setInsuranceForm({ ...insuranceForm, end_date: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Notes</label>
+                  <label>{t.notes}</label>
                   <textarea value={insuranceForm.notes} onChange={(e) => setInsuranceForm({ ...insuranceForm, notes: e.target.value })} placeholder="Additional notes..." rows={2} />
                 </div>
-                <button type="submit" className="submit-btn">Save Policy</button>
+                <button type="submit" className="submit-btn">{t.savePolicy}</button>
               </form>
             )}
 
             {insurancePolicies.length === 0 ? (
               <div className="empty-records">
-                <p>🛡️ No insurance policies recorded</p>
-                <p className="empty-hint">Add an insurance policy to track coverage for this animal</p>
+                <p>🛡️ {t.noInsurancePolicies}</p>
+                <p className="empty-hint">{t.addInsuranceHint}</p>
               </div>
             ) : (
               <div className="records-list">
@@ -672,10 +674,10 @@ export default function AnimalDetail() {
                       <span className="record-date">{pol.start_date}{pol.end_date ? ` → ${pol.end_date}` : ''}</span>
                     </div>
                     <div className="insurance-details">
-                      <p className="record-detail"><strong>Provider:</strong> {pol.provider}</p>
-                      {pol.policy_number && <p className="record-detail"><strong>Policy #:</strong> {pol.policy_number}</p>}
-                      <p className="record-detail"><strong>Coverage:</strong> ₹{pol.coverage_amount?.toLocaleString('en-IN')}</p>
-                      {pol.premium > 0 && <p className="record-detail"><strong>Premium:</strong> ₹{pol.premium?.toLocaleString('en-IN')}/year</p>}
+                      <p className="record-detail"><strong>{t.provider}:</strong> {pol.provider}</p>
+                      {pol.policy_number && <p className="record-detail"><strong>{t.policyHash}:</strong> {pol.policy_number}</p>}
+                      <p className="record-detail"><strong>{t.coverage}:</strong> ₹{pol.coverage_amount?.toLocaleString('en-IN')}</p>
+                      {pol.premium > 0 && <p className="record-detail"><strong>{t.premium}:</strong> ₹{pol.premium?.toLocaleString('en-IN')}/year</p>}
                     </div>
                     {pol.notes && <p className="record-detail note-text">{pol.notes}</p>}
                   </div>
@@ -690,7 +692,7 @@ export default function AnimalDetail() {
           <div className="loans-tab tab-panel-anim">
             {perms.canAddLoan && (
               <button onClick={() => setShowLoanForm(!showLoanForm)} className="add-record-btn">
-                {showLoanForm ? 'Cancel' : '+ Add Loan Record'}
+                {showLoanForm ? t.cancel : `+ ${t.addLoan}`}
               </button>
             )}
 
@@ -698,40 +700,40 @@ export default function AnimalDetail() {
               <form onSubmit={handleAddLoan} className="record-form">
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Lender / Bank</label>
+                    <label>{t.lenderBank}</label>
                     <input type="text" value={loanForm.lender} onChange={(e) => setLoanForm({ ...loanForm, lender: e.target.value })} placeholder="e.g., SBI, NABARD" required />
                   </div>
                   <div className="form-group">
-                    <label>Loan Amount (₹)</label>
+                    <label>{t.loanAmount} (₹)</label>
                     <input type="number" value={loanForm.loan_amount} onChange={(e) => setLoanForm({ ...loanForm, loan_amount: e.target.value })} placeholder="100000" required />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Interest Rate (%)</label>
+                    <label>{t.interestRate}</label>
                     <input type="number" step="0.1" value={loanForm.interest_rate} onChange={(e) => setLoanForm({ ...loanForm, interest_rate: e.target.value })} placeholder="7.5" />
                   </div>
                   <div className="form-group">
-                    <label>Tenure (months)</label>
+                    <label>{t.tenureMonths}</label>
                     <input type="number" value={loanForm.tenure_months} onChange={(e) => setLoanForm({ ...loanForm, tenure_months: e.target.value })} placeholder="12" />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Disbursement Date</label>
+                  <label>{t.disbursementDate}</label>
                   <input type="date" value={loanForm.disbursement_date} onChange={(e) => setLoanForm({ ...loanForm, disbursement_date: e.target.value })} />
                 </div>
                 <div className="form-group">
-                  <label>Notes</label>
+                  <label>{t.notes}</label>
                   <textarea value={loanForm.notes} onChange={(e) => setLoanForm({ ...loanForm, notes: e.target.value })} placeholder="Additional notes..." rows={2} />
                 </div>
-                <button type="submit" className="submit-btn">Save Loan</button>
+                <button type="submit" className="submit-btn">{t.saveLoan}</button>
               </form>
             )}
 
             {loanRecords.length === 0 ? (
               <div className="empty-records">
-                <p>💰 No loan records</p>
-                <p className="empty-hint">Add a loan record to track livestock-backed financing</p>
+                <p>💰 {t.noLoanRecords}</p>
+                <p className="empty-hint">{t.addLoanHint}</p>
               </div>
             ) : (
               <div className="records-list">
@@ -742,10 +744,10 @@ export default function AnimalDetail() {
                       <span className="record-date">{loan.disbursement_date}</span>
                     </div>
                     <div className="loan-details">
-                      <p className="record-detail"><strong>Lender:</strong> {loan.lender}</p>
-                      <p className="record-detail"><strong>Amount:</strong> ₹{loan.loan_amount?.toLocaleString('en-IN')}</p>
-                      {loan.interest_rate > 0 && <p className="record-detail"><strong>Interest:</strong> {loan.interest_rate}% p.a.</p>}
-                      {loan.tenure_months > 0 && <p className="record-detail"><strong>Tenure:</strong> {loan.tenure_months} months</p>}
+                      <p className="record-detail"><strong>{t.lender}:</strong> {loan.lender}</p>
+                      <p className="record-detail"><strong>{t.amount}:</strong> ₹{loan.loan_amount?.toLocaleString('en-IN')}</p>
+                      {loan.interest_rate > 0 && <p className="record-detail"><strong>{t.interest}:</strong> {loan.interest_rate}% p.a.</p>}
+                      {loan.tenure_months > 0 && <p className="record-detail"><strong>{t.tenure}:</strong> {loan.tenure_months} months</p>}
                     </div>
                     {loan.notes && <p className="record-detail note-text">{loan.notes}</p>}
                   </div>

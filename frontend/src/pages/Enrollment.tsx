@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import ImageUpload from '../components/ImageUpload';
 import CameraCapture from '../components/CameraCapture';
 import UploadProgress from '../components/UploadProgress';
@@ -12,6 +13,7 @@ import '../styles/Enrollment.css';
 export default function Enrollment() {
   const navigate = useNavigate();
   const { user, idToken } = useAuth();
+  const { t } = useLanguage();
   const [showCamera, setShowCamera] = useState(false);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState('');
@@ -127,7 +129,7 @@ export default function Enrollment() {
       }
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Enrollment failed. Please try again.';
+        err instanceof Error ? err.message : t.enrollmentFailed;
       setState((prev) => ({ ...prev, status: 'error', error: message }));
     }
   };
@@ -139,7 +141,7 @@ export default function Enrollment() {
       await updateAnimal(enrolledId, animalForm, idToken);
       navigate('/result', { state: { result: state.result } });
     } catch {
-      alert('Failed to save animal details. You can update later from the dashboard.');
+      alert(t.failedToSaveAnimal);
       navigate('/result', { state: { result: state.result } });
     } finally {
       setSavingForm(false);
@@ -154,26 +156,26 @@ export default function Enrollment() {
       <div className="page enrollment-page">
         <div className="container">
           <div className="page-header">
-            <h1>Animal Details</h1>
-            <p>Fill in details for <strong>{enrolledId}</strong></p>
+            <h1>{t.animalDetails}</h1>
+            <p>{t.fillDetails} <strong>{enrolledId}</strong></p>
           </div>
           <div className="card animal-detail-form">
             <div className="form-row-2">
               <div className="form-group">
-                <label>Species *</label>
+                <label>{t.speciesLabel} *</label>
                 <select
                   value={animalForm.species}
                   onChange={(e) => setAnimalForm({ ...animalForm, species: e.target.value })}
                 >
-                  <option value="cattle">Cattle</option>
-                  <option value="buffalo">Buffalo</option>
-                  <option value="goat">Goat</option>
-                  <option value="sheep">Sheep</option>
-                  <option value="other">Other</option>
+                  <option value="cattle">{t.cattle}</option>
+                  <option value="buffalo">{t.buffalo}</option>
+                  <option value="goat">{t.goat}</option>
+                  <option value="sheep">{t.sheep}</option>
+                  <option value="other">{t.other}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Breed *</label>
+                <label>{t.breedLabel} *</label>
                 <input
                   type="text"
                   value={animalForm.breed}
@@ -185,18 +187,18 @@ export default function Enrollment() {
             </div>
             <div className="form-row-2">
               <div className="form-group">
-                <label>Gender *</label>
+                <label>{t.genderLabel} *</label>
                 <select
                   value={animalForm.gender}
                   onChange={(e) => setAnimalForm({ ...animalForm, gender: e.target.value })}
                 >
-                  <option value="">Select</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
+                  <option value="">{t.selectGender}</option>
+                  <option value="male">{t.male}</option>
+                  <option value="female">{t.female}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Age (months) *</label>
+                <label>{t.ageMonths} *</label>
                 <input
                   type="number"
                   value={animalForm.age_months || ''}
@@ -209,7 +211,7 @@ export default function Enrollment() {
             </div>
             <div className="form-row-2">
               <div className="form-group">
-                <label>Color/Pattern</label>
+                <label>{t.colorPattern}</label>
                 <input
                   type="text"
                   value={animalForm.color_pattern}
@@ -218,7 +220,7 @@ export default function Enrollment() {
                 />
               </div>
               <div className="form-group">
-                <label>Horn Type</label>
+                <label>{t.hornType}</label>
                 <input
                   type="text"
                   value={animalForm.horn_type}
@@ -228,7 +230,7 @@ export default function Enrollment() {
               </div>
             </div>
             <div className="form-group">
-              <label>Identifiable Marks</label>
+              <label>{t.identifiableMarks}</label>
               <textarea
                 value={animalForm.identifiable_marks}
                 onChange={(e) => setAnimalForm({ ...animalForm, identifiable_marks: e.target.value })}
@@ -238,7 +240,7 @@ export default function Enrollment() {
             </div>
             <div className="form-row-3">
               <div className="form-group">
-                <label>Village *</label>
+                <label>{t.village} *</label>
                 <input
                   type="text"
                   value={animalForm.village}
@@ -247,7 +249,7 @@ export default function Enrollment() {
                 />
               </div>
               <div className="form-group">
-                <label>District *</label>
+                <label>{t.district} *</label>
                 <input
                   type="text"
                   value={animalForm.district}
@@ -256,7 +258,7 @@ export default function Enrollment() {
                 />
               </div>
               <div className="form-group">
-                <label>State *</label>
+                <label>{t.state} *</label>
                 <input
                   type="text"
                   value={animalForm.state}
@@ -278,14 +280,14 @@ export default function Enrollment() {
                 onClick={handleSaveAnimalForm}
                 disabled={savingForm || !animalForm.breed || !animalForm.gender}
               >
-                {savingForm ? 'Saving...' : '💾 Save Animal Details'}
+                {savingForm ? t.saving : `💾 ${t.saveAnimalDetails}`}
               </button>
               <button
                 className="btn btn-outline"
                 style={{ marginTop: '0.5rem', width: '100%' }}
                 onClick={() => navigate('/result', { state: { result: state.result } })}
               >
-                Skip for now →
+                {t.skipForNow} →
               </button>
             </div>
           </div>
@@ -298,11 +300,11 @@ export default function Enrollment() {
     <div className="page enrollment-page">
       <div className="container">
         <div className="page-header">
-          <h1>Animal Enrollment</h1>
-          <p>Capture or upload a clear photo of the animal&apos;s muzzle</p>
+          <h1>{t.animalEnrollment}</h1>
+          <p>{t.captureOrUploadDesc}</p>
           {!isFarmer && (
             <div className="enrollment-notice">
-              ⚠️ You&apos;re enrolling without an owner account. The animal won&apos;t be linked to any owner.
+              ⚠️ {t.enrollNotice}
             </div>
           )}
         </div>
@@ -311,11 +313,11 @@ export default function Enrollment() {
         {isFarmer && (
           <div className="location-status">
             {location ? (
-              <span className="location-ok">📍 GPS Active — {location.lat.toFixed(4)}, {location.lng.toFixed(4)}</span>
+              <span className="location-ok">📍 {t.gpsActive} — {location.lat.toFixed(4)}, {location.lng.toFixed(4)}</span>
             ) : locationError ? (
               <span className="location-warn">⚠️ {locationError}</span>
             ) : (
-              <span className="location-loading">📍 Getting location...</span>
+              <span className="location-loading">📍 {t.gettingLocation}</span>
             )}
           </div>
         )}
@@ -348,7 +350,7 @@ export default function Enrollment() {
                   onClick={handleSubmit}
                   disabled={isProcessing}
                 >
-                  🚀 Enroll Animal
+                  🚀 {t.enrollAnimal}
                 </button>
               )}
             </>
@@ -356,12 +358,12 @@ export default function Enrollment() {
         </div>
 
         <div className="enrollment-tips card">
-          <h4>📋 Photo Tips</h4>
+          <h4>📋 {t.photoTips}</h4>
           <ul>
-            <li>Focus on the animal&apos;s muzzle/nose area</li>
-            <li>Ensure good lighting — avoid harsh shadows</li>
-            <li>Keep the camera steady for a sharp image</li>
-            <li>Use minimum 640×480 pixel resolution</li>
+            <li>{t.photoTip1}</li>
+            <li>{t.photoTip2}</li>
+            <li>{t.photoTip3}</li>
+            <li>{t.photoTip4}</li>
           </ul>
         </div>
       </div>

@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 import { ROLE_CONFIG, UserRole } from '../types';
 import '../styles/Auth.css';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login, completeNewPassword, needsNewPassword, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -70,7 +73,7 @@ export default function Login() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="loading-spinner" />
-          <p style={{ textAlign: 'center', marginTop: '1rem' }}>Loading...</p>
+          <p style={{ textAlign: 'center', marginTop: '1rem' }}>{t.loading}</p>
         </div>
       </div>
     );
@@ -78,12 +81,15 @@ export default function Login() {
 
   return (
     <div className="auth-container">
-      <Link to="/" className="auth-home-link">🏠 Home</Link>
+      <Link to="/" className="auth-home-link">🏠 {t.home}</Link>
       <div className="auth-card">
         <div className="auth-header">
-          <h1>🐄 पशु आधार</h1>
-          <h2>Pashu Aadhaar AI</h2>
-          <p className="auth-subtitle">Livestock Identification System</p>
+          <div className="auth-lang-row">
+            <LanguageSelector compact />
+          </div>
+          <h1>🐄 {t.appNameHindi}</h1>
+          <h2>{t.appName}</h2>
+          <p className="auth-subtitle">{t.appSubtitle}</p>
         </div>
 
         {/* Role legend pills */}
@@ -104,40 +110,40 @@ export default function Login() {
         {needsNewPassword ? (
           <form onSubmit={handleNewPassword} className="auth-form">
             <p className="password-change-notice">
-              ⚠️ Please set a new password for your account
+              {t.passwordChangeNotice}
             </p>
             <div className="form-group">
-              <label htmlFor="newPassword">New Password</label>
+              <label htmlFor="newPassword">{t.newPassword}</label>
               <input
                 id="newPassword"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
+                placeholder={t.newPassword}
                 required
                 minLength={8}
               />
             </div>
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">{t.confirmPassword}</label>
               <input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
+                placeholder={t.confirmPassword}
                 required
                 minLength={8}
               />
             </div>
             <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? 'Setting password...' : 'Set New Password'}
+              {loading ? t.settingPassword : t.setNewPassword}
             </button>
           </form>
         ) : (
           <form onSubmit={handleLogin} className="auth-form">
             <div className="form-group">
-              <label htmlFor="phone">Phone Number</label>
+              <label htmlFor="phone">{t.phoneNumber}</label>
               <div className="phone-input-wrapper">
                 <span className="country-code">+91</span>
                 <input
@@ -153,14 +159,14 @@ export default function Login() {
               </div>
             </div>
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t.password}</label>
               <div style={{ position: 'relative' }}>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder={t.password}
                   required
                   style={{ paddingRight: '2.5rem' }}
                 />
@@ -186,14 +192,14 @@ export default function Login() {
               </div>
             </div>
             <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? t.signingIn : t.signIn}
             </button>
           </form>
         )}
 
         <div className="auth-footer">
-          Don't have an account?{' '}
-          <Link to="/signup" className="auth-footer-link">Create Account</Link>
+          {t.dontHaveAccount}{' '}
+          <Link to="/signup" className="auth-footer-link">{t.createAccount}</Link>
         </div>
       </div>
     </div>

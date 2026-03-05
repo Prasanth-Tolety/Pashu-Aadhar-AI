@@ -1,0 +1,124 @@
+.lang-selector {
+  position: relative;
+  z-index: 1000;
+}
+
+.lang-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.lang-trigger:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.lang-icon {
+  font-size: 1.1rem;
+}
+
+.lang-arrow {
+  font-size: 0.6rem;
+  opacity: 0.7;
+}
+
+.lang-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  padding: 0.35rem;
+  animation: langFadeIn 0.15s ease;
+}
+
+@keyframes langFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #333;
+  transition: background 0.15s;
+}
+
+.lang-option:hover {
+  background: #f0f4ff;
+}
+
+.lang-option.lang-active {
+  background: #e8f0fe;
+  font-weight: 600;
+}
+
+.lang-option-label {
+  flex: 1;
+}
+
+.lang-option-en {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.lang-check {
+  color: #1a73e8;
+  font-weight: bold;
+}
+
+/* Compact mode for nav bar */
+.lang-compact .lang-trigger {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  background: transparent;
+  border-color: transparent;
+}
+
+.lang-compact .lang-current {
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dark context (e.g., on dark headers) */
+.dashboard-header .lang-trigger,
+.landing-nav .lang-trigger {
+  color: #fff;
+}
+
+.dashboard-header .lang-trigger:hover,
+.landing-nav .lang-trigger:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Light context (auth pages) */
+.auth-card .lang-trigger {
+  color: #333;
+  background: #f5f5f5;
+  border-color: #ddd;
+}
+
+.auth-card .lang-trigger:hover {
+  background: #eee;
+}

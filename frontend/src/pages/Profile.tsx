@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { getProfile, updateProfile, getAnimalsByOwner } from '../services/api';
 import { ROLE_CONFIG, UserRole } from '../types';
 import '../styles/Profile.css';
@@ -26,6 +27,7 @@ interface ProfileData {
 
 export default function Profile() {
   const { user, idToken } = useAuth();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -72,7 +74,7 @@ export default function Profile() {
         aadhaar_last4: data.aadhaar_last4 || '',
       });
     } catch {
-      setMessage('Failed to load profile');
+      setMessage(t.failedToLoadProfile);
     } finally {
       setLoading(false);
     }
@@ -83,11 +85,11 @@ export default function Profile() {
     setMessage('');
     try {
       await updateProfile(form, idToken!);
-      setMessage('Profile updated successfully!');
+      setMessage(t.profileUpdated);
       setEditing(false);
       await fetchProfile();
     } catch {
-      setMessage('Failed to update profile');
+      setMessage(t.failedToUpdateProfile);
     } finally {
       setSaving(false);
     }
@@ -101,7 +103,7 @@ export default function Profile() {
     return (
       <div className="profile-container">
         <div className="loading-spinner" />
-        <p style={{ textAlign: 'center' }}>Loading profile...</p>
+        <p style={{ textAlign: 'center' }}>{t.loadingProfile}</p>
       </div>
     );
   }
@@ -109,8 +111,8 @@ export default function Profile() {
   return (
     <div className="profile-container">
       <header className="profile-header">
-        <Link to="/dashboard" className="back-link">← Dashboard</Link>
-        <h1>My Profile</h1>
+        <Link to="/dashboard" className="back-link">{t.backToDashboard}</Link>
+        <h1>{t.myProfile}</h1>
       </header>
 
       {/* ID Card */}
@@ -124,16 +126,16 @@ export default function Profile() {
         </div>
         <div className="id-card-bottom">
           <div className="id-card-field">
-            <span className="id-card-label">User ID</span>
+            <span className="id-card-label">{t.userId}</span>
             <span className="id-card-value">{displayId}</span>
           </div>
           <div className="id-card-field">
-            <span className="id-card-label">Phone</span>
+            <span className="id-card-label">{t.phone}</span>
             <span className="id-card-value">{profile?.phone_number || user?.phoneNumber}</span>
           </div>
           {form.aadhaar_last4 && (
             <div className="id-card-field">
-              <span className="id-card-label">Aadhaar</span>
+              <span className="id-card-label">{t.aadhaar}</span>
               <span className="id-card-value">XXXX-XXXX-{form.aadhaar_last4}</span>
             </div>
           )}
@@ -144,17 +146,17 @@ export default function Profile() {
       <div className="profile-stats">
         <div className="stat-card">
           <span className="stat-icon">📅</span>
-          <div><span className="stat-value">{memberSince}</span><span className="stat-label">Member Since</span></div>
+          <div><span className="stat-value">{memberSince}</span><span className="stat-label">{t.memberSince}</span></div>
         </div>
         {role === 'farmer' && (
           <div className="stat-card">
             <span className="stat-icon">🐮</span>
-            <div><span className="stat-value">{animalCount}</span><span className="stat-label">Animals Enrolled</span></div>
+            <div><span className="stat-value">{animalCount}</span><span className="stat-label">{t.animalsEnrolled}</span></div>
           </div>
         )}
         <div className="stat-card">
           <span className="stat-icon">✅</span>
-          <div><span className="stat-value">Active</span><span className="stat-label">Account Status</span></div>
+          <div><span className="stat-value">{t.active}</span><span className="stat-label">{t.accountStatus}</span></div>
         </div>
       </div>
 
@@ -167,10 +169,10 @@ export default function Profile() {
       {/* Profile Details */}
       <div className="profile-section">
         <div className="profile-section-header">
-          <h3>Personal Details</h3>
+          <h3>{t.personalDetails}</h3>
           {!editing && (
             <button className="edit-btn" onClick={() => setEditing(true)}>
-              ✏️ Edit
+              ✏️ {t.edit}
             </button>
           )}
         </div>
@@ -178,7 +180,7 @@ export default function Profile() {
         {editing ? (
           <div className="profile-form">
             <div className="form-group">
-              <label>Full Name</label>
+              <label>{t.fullName}</label>
               <input
                 type="text"
                 value={form.name}
@@ -186,7 +188,7 @@ export default function Profile() {
               />
             </div>
             <div className="form-group">
-              <label>Aadhaar (last 4 digits)</label>
+              <label>{t.aadhaarLast4}</label>
               <input
                 type="text"
                 value={form.aadhaar_last4}
@@ -197,7 +199,7 @@ export default function Profile() {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Village</label>
+                <label>{t.village}</label>
                 <input
                   type="text"
                   value={form.village}
@@ -205,7 +207,7 @@ export default function Profile() {
                 />
               </div>
               <div className="form-group">
-                <label>District</label>
+                <label>{t.district}</label>
                 <input
                   type="text"
                   value={form.district}
@@ -215,7 +217,7 @@ export default function Profile() {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>State</label>
+                <label>{t.state}</label>
                 <input
                   type="text"
                   value={form.state}
@@ -223,7 +225,7 @@ export default function Profile() {
                 />
               </div>
               <div className="form-group">
-                <label>Pincode</label>
+                <label>{t.pincode}</label>
                 <input
                   type="text"
                   value={form.pincode}
@@ -234,20 +236,20 @@ export default function Profile() {
             </div>
             <div className="profile-form-actions">
               <button className="save-btn" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? t.saving : t.saveChanges}
               </button>
-              <button className="cancel-btn" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="cancel-btn" onClick={() => setEditing(false)}>{t.cancel}</button>
             </div>
           </div>
         ) : (
           <div className="profile-info-grid">
-            <InfoRow label="Full Name" value={profile?.name} />
-            <InfoRow label="Phone" value={profile?.phone_number} />
-            <InfoRow label="Aadhaar" value={form.aadhaar_last4 ? `XXXX-XXXX-${form.aadhaar_last4}` : undefined} />
-            <InfoRow label="Village" value={profile?.owner?.village} />
-            <InfoRow label="District" value={profile?.owner?.district} />
-            <InfoRow label="State" value={profile?.owner?.state} />
-            <InfoRow label="Pincode" value={profile?.owner?.pincode} />
+            <InfoRow label={t.fullName} value={profile?.name} />
+            <InfoRow label={t.phone} value={profile?.phone_number} />
+            <InfoRow label={t.aadhaar} value={form.aadhaar_last4 ? `XXXX-XXXX-${form.aadhaar_last4}` : undefined} />
+            <InfoRow label={t.village} value={profile?.owner?.village} />
+            <InfoRow label={t.district} value={profile?.owner?.district} />
+            <InfoRow label={t.state} value={profile?.owner?.state} />
+            <InfoRow label={t.pincode} value={profile?.owner?.pincode} />
           </div>
         )}
       </div>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 import {
   getAnimalsByOwner,
   getAccessibleAnimals,
@@ -17,6 +19,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function Dashboard() {
   const { user, idToken, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [accessibleAnimals, setAccessibleAnimals] = useState<Animal[]>([]);
@@ -76,7 +79,7 @@ export default function Dashboard() {
       }
       // Gov/Admin: no pre-load, can search any
     } catch {
-      setError('Failed to load dashboard data');
+      setError(t.failedToLoadDashboard);
     } finally {
       setLoading(false);
     }
@@ -97,9 +100,9 @@ export default function Dashboard() {
       setSearchResult(response.data.animal);
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 404) {
-        setSearchError('Animal not found. Check the Livestock ID.');
+        setSearchError(t.animalNotFound);
       } else {
-        setSearchError('Search failed. Please try again.');
+        setSearchError(t.searchFailed);
       }
     } finally {
       setSearchLoading(false);
@@ -147,10 +150,11 @@ export default function Dashboard() {
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
-          <Link to="/" className="header-home-btn" title="Home">🏠</Link>
-          <Link to="/dashboard" className="header-brand">🐄 पशु आधार</Link>
+          <Link to="/" className="header-home-btn" title={t.home}>🏠</Link>
+          <Link to="/dashboard" className="header-brand">🐄 {t.appNameHindi}</Link>
         </div>
         <div className="header-right">
+          <LanguageSelector compact />
           <div className="user-info">
             <span className="user-name">{user?.name || 'User'}</span>
             <span className="user-display-id">{displayId}</span>
@@ -158,22 +162,22 @@ export default function Dashboard() {
               {roleConfig?.icon} {role?.toUpperCase()}
             </span>
           </div>
-          <Link to="/profile" className="profile-link">👤 Profile</Link>
-          <button onClick={handleLogout} className="logout-btn">Sign Out</button>
+          <Link to="/profile" className="profile-link">👤 {t.profile}</Link>
+          <button onClick={handleLogout} className="logout-btn">{t.signOut}</button>
         </div>
       </header>
 
       {/* Dashboard Tabs */}
       <div className="dashboard-tabs">
         <button className={`dash-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-          📊 Overview
+          📊 {t.overview}
         </button>
         <button className={`dash-tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
-          📩 Requests
+          📩 {t.requests}
           {pendingCount > 0 && <span className="tab-badge">{pendingCount}</span>}
         </button>
         <button className={`dash-tab ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}>
-          🔍 Search
+          🔍 {t.search}
         </button>
       </div>
 
@@ -187,29 +191,29 @@ export default function Dashboard() {
               {isFarmer && (
                 <Link to="/enroll" className="action-card enroll-action">
                   <span className="action-icon">📸</span>
-                  <span className="action-label">Enroll New Animal</span>
+                  <span className="action-label">{t.enrollNewAnimal}</span>
                 </Link>
               )}
               <Link to="/profile" className="action-card profile-action">
                 <span className="action-icon">👤</span>
-                <span className="action-label">My Profile</span>
+                <span className="action-label">{t.myProfile}</span>
               </Link>
               <button onClick={loadDashboardData} className="action-card refresh-action">
                 <span className="action-icon">🔄</span>
-                <span className="action-label">Refresh</span>
+                <span className="action-label">{t.refresh}</span>
               </button>
             </section>
 
             {/* Farmer's Animals */}
             {isFarmer && (
               <section className="animals-section">
-                <h2>� My Animals</h2>
+                <h2>🐮 {t.myAnimals}</h2>
                 {loading ? (
-                  <div className="loading-state"><div className="loading-spinner" /><p>Loading your animals...</p></div>
+                  <div className="loading-state"><div className="loading-spinner" /><p>{t.loadingAnimals}</p></div>
                 ) : error ? (
                   <div className="error-state">{error}</div>
                 ) : animals.length === 0 ? (
-                  <div className="empty-state"><p>No animals enrolled yet.</p><Link to="/enroll" className="enroll-link">Enroll your first animal →</Link></div>
+                  <div className="empty-state"><p>{t.noAnimalsYet}</p><Link to="/enroll" className="enroll-link">{t.enrollFirst}</Link></div>
                 ) : (
                   <div className="animals-grid">
                     {animals.map((animal) => (
@@ -219,12 +223,12 @@ export default function Dashboard() {
                           <span className="animal-species">{animal.species || '🐄'}</span>
                         </div>
                         <div className="animal-card-body">
-                          <p><strong>Breed:</strong> {animal.breed || 'Unknown'}</p>
-                          <p><strong>Gender:</strong> {animal.gender || 'Unknown'}</p>
+                          <p><strong>{t.breed}:</strong> {animal.breed || t.unknown}</p>
+                          <p><strong>{t.gender}:</strong> {animal.gender || t.unknown}</p>
                           {animal.age_months && (
-                            <p><strong>Age:</strong> {Math.floor(animal.age_months / 12)}y {animal.age_months % 12}m</p>
+                            <p><strong>{t.age}:</strong> {Math.floor(animal.age_months / 12)}y {animal.age_months % 12}m</p>
                           )}
-                          <p><strong>Location:</strong> {animal.village || 'Unknown'}</p>
+                          <p><strong>{t.location}:</strong> {animal.village || t.unknown}</p>
                         </div>
                       </Link>
                     ))}
@@ -236,7 +240,7 @@ export default function Dashboard() {
             {/* Vet/Insurer: Accessible Animals */}
             {isVetOrInsurer && accessibleAnimals.length > 0 && (
               <section className="accessible-animals">
-                <h3>🐮 Animals I Can Access</h3>
+                <h3>🐮 {t.animalsICanAccess}</h3>
                 <div className="animals-grid">
                   {accessibleAnimals.map((animal) => (
                     <Link key={animal.livestock_id} to={`/animals/${animal.livestock_id}`} className="animal-card">
@@ -245,8 +249,8 @@ export default function Dashboard() {
                         <span className="animal-species">{animal.species || '🐄'}</span>
                       </div>
                       <div className="animal-card-body">
-                        <p><strong>Breed:</strong> {animal.breed || 'Unknown'}</p>
-                        <p><strong>Owner:</strong> {animal.owner_id || 'Unknown'}</p>
+                        <p><strong>{t.breed}:</strong> {animal.breed || t.unknown}</p>
+                        <p><strong>{t.owner}:</strong> {animal.owner_id || t.unknown}</p>
                       </div>
                     </Link>
                   ))}
@@ -262,18 +266,18 @@ export default function Dashboard() {
             {/* Vet/Insurer: Request Access Form */}
             {isVetOrInsurer && (
               <section className="access-request-section">
-                <h2>🔐 Request Animal Access</h2>
-                <p className="section-note">Request access from an animal owner to view their livestock data</p>
+                <h2>🔐 {t.requestAnimalAccess}</h2>
+                <p className="section-note">{t.requestAccessDesc}</p>
                 <form onSubmit={handleRequestAccess} className="access-request-form">
-                  <input type="text" value={accessRequestId} onChange={(e) => setAccessRequestId(e.target.value)} placeholder="Livestock ID" className="search-input" required />
-                  <input type="text" value={accessReason} onChange={(e) => setAccessReason(e.target.value)} placeholder="Reason for access (e.g., health checkup)" className="search-input" />
-                  <button type="submit" className="search-btn" disabled={requestLoading}>{requestLoading ? 'Sending...' : 'Request Access'}</button>
+                  <input type="text" value={accessRequestId} onChange={(e) => setAccessRequestId(e.target.value)} placeholder={t.livestockId} className="search-input" required />
+                  <input type="text" value={accessReason} onChange={(e) => setAccessReason(e.target.value)} placeholder={t.reasonForAccess} className="search-input" />
+                  <button type="submit" className="search-btn" disabled={requestLoading}>{requestLoading ? t.sendingRequest : t.requestAccess}</button>
                 </form>
                 {requestMsg && <div className="request-message">{requestMsg}</div>}
 
                 {myRequests.length > 0 && (
                   <div className="requests-list">
-                    <h3>My Requests</h3>
+                    <h3>{t.myRequests}</h3>
                     {myRequests.map((req) => (
                       <div key={req.request_id} className={`request-card status-${req.status}`}>
                         <div className="request-info">
@@ -292,9 +296,9 @@ export default function Dashboard() {
             {/* Farmer: Incoming Access Requests */}
             {isFarmer && (
               <section className="incoming-requests-section">
-                <h2>📩 Incoming Access Requests {pendingCount > 0 && <span className="header-badge">{pendingCount} pending</span>}</h2>
+                <h2>📩 {t.incomingAccessRequests} {pendingCount > 0 && <span className="header-badge">{pendingCount} {t.pending}</span>}</h2>
                 {incomingRequests.length === 0 ? (
-                  <div className="empty-state"><p>No access requests yet.</p></div>
+                  <div className="empty-state"><p>{t.noAccessRequests}</p></div>
                 ) : (
                   <div className="requests-list">
                     {incomingRequests.map((req) => (
@@ -307,8 +311,8 @@ export default function Dashboard() {
                         {req.reason && <p className="request-reason">"{req.reason}"</p>}
                         {req.status === 'pending' && (
                           <div className="request-actions">
-                            <button className="approve-btn" onClick={() => handleResolve(req.request_id, 'approve')}>✅ Approve</button>
-                            <button className="deny-btn" onClick={() => handleResolve(req.request_id, 'deny')}>❌ Deny</button>
+                            <button className="approve-btn" onClick={() => handleResolve(req.request_id, 'approve')}>✅ {t.approve}</button>
+                            <button className="deny-btn" onClick={() => handleResolve(req.request_id, 'deny')}>❌ {t.deny}</button>
                           </div>
                         )}
                         <span className="request-date">{new Date(req.created_at).toLocaleDateString('en-IN')}</span>
@@ -321,7 +325,7 @@ export default function Dashboard() {
 
             {/* Gov/Admin: no requests section */}
             {isGovOrAdmin && (
-              <div className="empty-state"><p>Use the Search tab to look up any animal by Livestock ID.</p></div>
+              <div className="empty-state"><p>{t.useSearchTab}</p></div>
             )}
           </div>
         )}
@@ -330,24 +334,24 @@ export default function Dashboard() {
         {activeTab === 'search' && (
           <div className="tab-panel fade-in">
             <section className="search-section">
-              <h2>🔍 {isGovOrAdmin ? 'Search Any Animal' : 'Look Up Animal'}</h2>
+              <h2>🔍 {isGovOrAdmin ? t.searchAnyAnimal : t.lookUpAnimal}</h2>
               <form onSubmit={handleSearch} className="search-form">
-                <input type="text" value={searchId} onChange={(e) => setSearchId(e.target.value)} placeholder="Enter Livestock ID (e.g., PA-MMCEI8EW-2DEKAM)" className="search-input" />
-                <button type="submit" className="search-btn" disabled={searchLoading}>{searchLoading ? 'Searching...' : 'Search'}</button>
+                <input type="text" value={searchId} onChange={(e) => setSearchId(e.target.value)} placeholder={t.enterLivestockId} className="search-input" />
+                <button type="submit" className="search-btn" disabled={searchLoading}>{searchLoading ? t.searching : t.search}</button>
               </form>
 
               {searchError && <div className="search-error">{searchError}</div>}
 
               {searchResult && (
                 <div className="search-result-card">
-                  <h3>✅ Animal Found</h3>
+                  <h3>✅ {t.animalFound}</h3>
                   <div className="animal-details-grid">
-                    <div className="detail-item"><span className="detail-label">Livestock ID</span><span className="detail-value id-value">{searchResult.livestock_id}</span></div>
-                    <div className="detail-item"><span className="detail-label">Species</span><span className="detail-value">{searchResult.species || 'N/A'}</span></div>
-                    <div className="detail-item"><span className="detail-label">Breed</span><span className="detail-value">{searchResult.breed || 'N/A'}</span></div>
-                    <div className="detail-item"><span className="detail-label">Gender</span><span className="detail-value">{searchResult.gender || 'N/A'}</span></div>
+                    <div className="detail-item"><span className="detail-label">{t.livestockId}</span><span className="detail-value id-value">{searchResult.livestock_id}</span></div>
+                    <div className="detail-item"><span className="detail-label">{t.species}</span><span className="detail-value">{searchResult.species || 'N/A'}</span></div>
+                    <div className="detail-item"><span className="detail-label">{t.breed}</span><span className="detail-value">{searchResult.breed || 'N/A'}</span></div>
+                    <div className="detail-item"><span className="detail-label">{t.gender}</span><span className="detail-value">{searchResult.gender || 'N/A'}</span></div>
                   </div>
-                  <Link to={`/animals/${searchResult.livestock_id}`} className="view-details-btn">View Full Details →</Link>
+                  <Link to={`/animals/${searchResult.livestock_id}`} className="view-details-btn">{t.viewFullDetails}</Link>
                 </div>
               )}
             </section>

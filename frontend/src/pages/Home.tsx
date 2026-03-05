@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 import { ROLE_CONFIG, UserRole } from '../types';
 import '../styles/Home.css';
 
@@ -22,6 +24,7 @@ function useCountUp(target: number, duration = 2000, start = false) {
 
 export default function Home() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [statsVisible, setStatsVisible] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
 
@@ -45,17 +48,18 @@ export default function Home() {
       <nav className="landing-nav">
         <div className="nav-brand">
           <span className="nav-logo">🐄</span>
-          <span className="nav-title">पशु आधार</span>
+          <span className="nav-title">{t.appNameHindi}</span>
         </div>
         <div className="nav-actions">
+          <LanguageSelector />
           {user ? (
             <Link to="/dashboard" className="nav-btn nav-btn-primary">
-              Dashboard →
+              {t.dashboard} →
             </Link>
           ) : (
             <>
-              <Link to="/login" className="nav-btn nav-btn-outline">Sign In</Link>
-              <Link to="/signup" className="nav-btn nav-btn-primary">Get Started</Link>
+              <Link to="/login" className="nav-btn nav-btn-outline">{t.signIn}</Link>
+              <Link to="/signup" className="nav-btn nav-btn-primary">{t.getStarted}</Link>
             </>
           )}
         </div>
@@ -64,27 +68,26 @@ export default function Home() {
       {/* Hero */}
       <section className="hero">
         <div className="hero-content">
-          <span className="hero-badge">🇮🇳 Digital India Initiative</span>
+          <span className="hero-badge">{t.heroBadge}</span>
           <h1 className="hero-title">
-            <span className="hero-title-hindi">पशु आधार</span>
-            <span className="hero-title-en">Pashu-Aadhaar AI</span>
+            <span className="hero-title-hindi">{t.appNameHindi}</span>
+            <span className="hero-title-en">{t.heroTagline}</span>
           </h1>
           <p className="hero-subtitle">
-            India's first AI-powered biometric identity system for livestock.
-            Secure muzzle-pattern recognition to uniquely identify every animal.
+            {t.heroSubtitle}
           </p>
           <div className="hero-buttons">
             {user ? (
               <Link to="/dashboard" className="hero-btn hero-btn-primary">
-                Go to Dashboard →
+                {t.goToDashboard} →
               </Link>
             ) : (
               <>
                 <Link to="/signup" className="hero-btn hero-btn-primary">
-                  Create Free Account
+                  {t.createFreeAccount}
                 </Link>
                 <Link to="/login" className="hero-btn hero-btn-secondary">
-                  Sign In
+                  {t.signIn}
                 </Link>
               </>
             )}
@@ -121,56 +124,56 @@ export default function Home() {
           <div className="live-stat-card">
             <span className="live-stat-icon">🐮</span>
             <span className="live-stat-number">{animalsEnrolled.toLocaleString()}+</span>
-            <span className="live-stat-label">Animals Enrolled</span>
+            <span className="live-stat-label">{t.animalsEnrolled}</span>
           </div>
           <div className="live-stat-card">
-            <span className="live-stat-icon">�‍🌾</span>
+            <span className="live-stat-icon">🧑‍🌾</span>
             <span className="live-stat-number">{farmersRegistered.toLocaleString()}+</span>
-            <span className="live-stat-label">Farmers Registered</span>
+            <span className="live-stat-label">{t.farmersRegistered}</span>
           </div>
           <div className="live-stat-card">
             <span className="live-stat-icon">📍</span>
             <span className="live-stat-number">{statesCovered}+</span>
-            <span className="live-stat-label">States Covered</span>
+            <span className="live-stat-label">{t.statesCovered}</span>
           </div>
           <div className="live-stat-card">
             <span className="live-stat-icon">🎯</span>
             <span className="live-stat-number">{accuracy}%</span>
-            <span className="live-stat-label">Match Accuracy</span>
+            <span className="live-stat-label">{t.matchAccuracy}</span>
           </div>
         </div>
       </section>
 
       {/* Features */}
       <section className="features-section">
-        <h2 className="section-title">How It Works</h2>
-        <p className="section-desc">Three simple steps to digitally identify any livestock</p>
+        <h2 className="section-title">{t.howItWorks}</h2>
+        <p className="section-desc">{t.howItWorksDesc}</p>
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-number">1</div>
-            <span className="feature-icon">�</span>
-            <h3>Capture</h3>
-            <p>Take a clear photo of the animal's muzzle using your phone camera</p>
+            <span className="feature-icon">📸</span>
+            <h3>{t.stepCapture}</h3>
+            <p>{t.stepCaptureDesc}</p>
           </div>
           <div className="feature-card">
             <div className="feature-number">2</div>
             <span className="feature-icon">🤖</span>
-            <h3>Analyze</h3>
-            <p>AI detects the animal, extracts unique biometric patterns via CLIP embeddings</p>
+            <h3>{t.stepAnalyze}</h3>
+            <p>{t.stepAnalyzeDesc}</p>
           </div>
           <div className="feature-card">
             <div className="feature-number">3</div>
             <span className="feature-icon">🆔</span>
-            <h3>Identify</h3>
-            <p>Instant matching against the database — enroll new or verify existing animals</p>
+            <h3>{t.stepIdentify}</h3>
+            <p>{t.stepIdentifyDesc}</p>
           </div>
         </div>
       </section>
 
       {/* Roles */}
       <section className="roles-section">
-        <h2 className="section-title">Built for Every Stakeholder</h2>
-        <p className="section-desc">Role-based access for the entire livestock ecosystem</p>
+        <h2 className="section-title">{t.builtForStakeholders}</h2>
+        <p className="section-desc">{t.stakeholderDesc}</p>
         <div className="roles-grid">
           {(Object.keys(ROLE_CONFIG) as UserRole[]).map((role) => {
             const config = ROLE_CONFIG[role];
@@ -190,7 +193,7 @@ export default function Home() {
 
       {/* Tech Stack */}
       <section className="tech-section">
-        <h2 className="section-title">Powered by</h2>
+        <h2 className="section-title">{t.poweredBy}</h2>
         <div className="tech-pills">
           <span className="tech-pill">AWS SageMaker</span>
           <span className="tech-pill">CLIP ViT-B/32</span>
@@ -205,17 +208,17 @@ export default function Home() {
 
       {/* CTA */}
       <section className="cta-section">
-        <h2>Ready to digitize your livestock?</h2>
-        <p>Join the Pashu Aadhaar network today — free for farmers.</p>
+        <h2>{t.readyToDigitize}</h2>
+        <p>{t.readyToDigitizeDesc}</p>
         <div className="cta-buttons">
-          <Link to="/signup" className="hero-btn hero-btn-primary">Create Account</Link>
-          <Link to="/enroll" className="hero-btn hero-btn-secondary">Try Quick Enrollment</Link>
+          <Link to="/signup" className="hero-btn hero-btn-primary">{t.createAccount}</Link>
+          <Link to="/enroll" className="hero-btn hero-btn-secondary">{t.tryQuickEnrollment}</Link>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="landing-footer">
-        <p>🐄 पशु आधार — Pashu Aadhaar AI © 2026 &middot; Built for rural India 🇮🇳</p>
+        <p>{t.footer}</p>
       </footer>
     </div>
   );

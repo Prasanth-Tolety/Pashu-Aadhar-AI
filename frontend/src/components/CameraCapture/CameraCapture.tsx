@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAnimalDetection } from '../../hooks/useAnimalDetection';
+import { useLanguage } from '../../context/LanguageContext';
 import './CameraCapture.css';
 
 // Model hosted on your CloudFront CDN (yolov8s — same COCO-80 output format)
@@ -19,6 +20,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   const [error, setError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [autoCapturing, setAutoCapturing] = useState(false);
+  const { t } = useLanguage();
 
   const {
     isModelLoading,
@@ -52,7 +54,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
         setError(null);
       }
     } catch {
-      setError('Unable to access camera. Please allow camera permissions and try again.');
+      setError(t.cameraPermissionError);
     }
   }, []);
 
@@ -158,12 +160,11 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
 
   // Status indicator text — uses muzzle quality feedback when available
   const getStatusText = () => {
-    if (isModelLoading) return { text: '🔄 Loading AI model...', cls: 'status-loading' };
-    if (!isModelReady) return { text: '⚠️ AI model unavailable', cls: 'status-error' };
-    if (!bestDetection) return { text: '🔍 Looking for cow...', cls: 'status-searching' };
-    if (isGoodShot) return { text: '✅ Perfect muzzle shot! Capturing...', cls: 'status-good' };
-    // Show muzzle quality feedback if available, otherwise generic tip
-    const feedbackText = muzzleQuality ? muzzleQuality.feedback : `🐄 Cow detected (${Math.round(bestDetection.confidence * 100)}%) — improve framing`;
+    if (isModelLoading) return { text: t.loadingAiModel, cls: 'status-loading' };
+    if (!isModelReady) return { text: t.aiModelUnavailable, cls: 'status-error' };
+    if (!bestDetection) return { text: t.lookingForAnimal, cls: 'status-searching' };
+    if (isGoodShot) return { text: t.perfectMuzzleShot, cls: 'status-good' };
+    const feedbackText = muzzleQuality ? muzzleQuality.feedback : `🐄 ${bestDetection.label} (${Math.round(bestDetection.confidence * 100)}%)`;
     return { text: feedbackText, cls: 'status-detected' };
   };
 
@@ -173,7 +174,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
     <div className="camera-overlay">
       <div className="camera-container">
         <div className="camera-header">
-          <h3>Capture Animal Photo</h3>
+          <h3>{t.captureAnimalPhoto}</h3>
           <button className="camera-close-btn" onClick={onClose} aria-label="Close camera">
             ✕
           </button>
@@ -183,7 +184,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
           <div className="camera-error">
             <p>{error}</p>
             <button className="btn btn-primary" onClick={() => startCamera(facingMode)}>
-              Retry
+              {t.retryCamera}
             </button>
           </div>
         ) : (
@@ -205,7 +206,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
                 onClick={toggleCamera}
                 aria-label="Flip camera"
               >
-                🔄 Flip
+                🔄 {t.flipCamera}
               </button>
               <button
                 className="btn btn-secondary camera-capture-btn"
@@ -213,11 +214,11 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
                 disabled={!isReady}
                 aria-label="Capture photo"
               >
-                📸 Capture
+                📸 {t.captureBtn}
               </button>
             </div>
             <p className="camera-hint">
-              AI auto-captures when animal is clearly visible. Or tap Capture manually.
+              {t.cameraAutoCapHint}
             </p>
           </>
         )}

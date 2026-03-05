@@ -1,4 +1,5 @@
 import { EnrollmentResponse } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 import './EnrollmentResult.css';
 
 interface EnrollmentResultProps {
@@ -7,6 +8,7 @@ interface EnrollmentResultProps {
 }
 
 export default function EnrollmentResult({ result, onEnrollAnother }: EnrollmentResultProps) {
+  const { t } = useLanguage();
   const isNew = result.status === 'NEW';
   const similarityPercent = Math.round(result.similarity * 100);
 
@@ -17,7 +19,7 @@ export default function EnrollmentResult({ result, onEnrollAnother }: Enrollment
       </div>
 
       <h2 className="result-title">
-        {isNew ? 'New Animal Enrolled!' : 'Animal Already Registered'}
+        {isNew ? t.newAnimalRegistered : t.existingAnimalFound}
       </h2>
 
       <div className={`result-badge ${isNew ? 'result-badge--new' : 'result-badge--existing'}`}>
@@ -26,11 +28,11 @@ export default function EnrollmentResult({ result, onEnrollAnother }: Enrollment
 
       <div className="result-details">
         <div className="result-row">
-          <span className="result-label">Livestock ID</span>
+          <span className="result-label">{t.livestockId}</span>
           <span className="result-value result-id">{result.livestock_id}</span>
         </div>
         <div className="result-row">
-          <span className="result-label">Match Similarity</span>
+          <span className="result-label">{t.similarityScore}</span>
           <div className="result-similarity">
             <div className="similarity-bar-container">
               <div
@@ -50,7 +52,7 @@ export default function EnrollmentResult({ result, onEnrollAnother }: Enrollment
       </div>
 
       <button className="btn btn-primary btn-full" onClick={onEnrollAnother}>
-        Enroll Another Animal
+        {t.enrollAnother}
       </button>
     </div>
   );

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 import { resendConfirmationCode } from '../services/auth';
 import { ALL_ROLES, ROLE_CONFIG, UserRole } from '../types';
 import '../styles/Auth.css';
@@ -10,6 +12,7 @@ type Step = 'role' | 'form' | 'verify';
 export default function Signup() {
   const navigate = useNavigate();
   const { signup, confirmSignUp, login } = useAuth();
+  const { t } = useLanguage();
 
   const [step, setStep] = useState<Step>('role');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
@@ -43,11 +46,11 @@ export default function Signup() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t.passwordsDoNotMatch);
       return;
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t.passwordMinChars);
       return;
     }
     if (aadhaarLast4 && aadhaarLast4.length !== 4) {
@@ -62,7 +65,19 @@ export default function Signup() {
       setStep('verify');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Signup failed';
-      setError(msg);
+      // If username already exists but UNCONFIRMED, resend code and go to verify step
+      if (msg.includes('already exists') || msg.includes('UsernameExistsException')) {
+        try {
+          const fullPhone = formatPhone(phoneNumber);
+          await resendConfirmationCode(fullPhone);
+          setError('Account exists but unverified. A new verification code has been sent.');
+          setStep('verify');
+        } catch {
+          setError('An account with this phone number already exists. Please sign in instead.');
+        }
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -107,14 +122,17 @@ export default function Signup() {
 
   return (
     <div className="auth-container" style={{ background: bgGradient }}>
-      <Link to="/" className="auth-home-link">🏠 Home</Link>
+      <Link to="/" className="auth-home-link">🏠 {t.home}</Link>
       <div className="auth-card">
         {/* Header */}
         <div className="auth-header">
-          <h1>🐄 पशु आधार</h1>
-          <h2>Pashu Aadhaar AI</h2>
+          <div className="auth-lang-row">
+            <LanguageSelector compact />
+          </div>
+          <h1>🐄 {t.appNameHindi}</h1>
+          <h2>{t.appName}</h2>
           {step === 'role' && (
-            <p className="auth-subtitle">Choose your role to get started</p>
+            <p className="auth-subtitle">{t.chooseRole}</p>
           )}
           {step === 'form' && roleConfig && (
             <div className="selected-role-badge" style={{ background: roleConfig.color }}>
@@ -122,7 +140,7 @@ export default function Signup() {
             </div>
           )}
           {step === 'verify' && (
-            <p className="auth-subtitle">Enter the verification code sent to your phone</p>
+            <p className="auth-subtitle">{t.enterVerificationCode}</p>
           )}
         </div>
 
@@ -156,19 +174,19 @@ export default function Signup() {
         {step === 'form' && (
           <form onSubmit={handleSignup} className="auth-form">
             <div className="form-group">
-              <label htmlFor="name">Full Name *</label>
+              <label htmlFor="name">{t.fullName} *</label>
               <input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your full name"
+                placeholder={t.fullName}
                 required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="phone">Phone Number *</label>
+              <label htmlFor="phone">{t.phoneNumber} *</label>
               <div className="phone-input-wrapper">
                 <span className="country-code">+91</span>
                 <input
@@ -185,7 +203,7 @@ export default function Signup() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="aadhaar">Aadhaar (last 4 digits)</label>
+              <label htmlFor="aadhaar">{t.aadhaarLast4}</label>
               <input
                 id="aadhaar"
                 type="text"
@@ -195,18 +213,18 @@ export default function Signup() {
                 maxLength={4}
                 inputMode="numeric"
               />
-              <span className="form-hint">For identity verification purposes</span>
+              <span className="form-hint">{t.aadhaarHint}</span>
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">Password *</label>
+              <label htmlFor="password">{t.password} *</label>
               <div style={{ position: 'relative' }}>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimum 8 characters"
+                  placeholder={t.passwordMinChars}
                   required
                   minLength={8}
                   style={{ paddingRight: '2.5rem' }}
@@ -234,14 +252,14 @@ export default function Signup() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password *</label>
+              <label htmlFor="confirmPassword">{t.confirmPassword} *</label>
               <div style={{ position: 'relative' }}>
                 <input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
+                  placeholder={t.confirmPassword}
                   required
                   minLength={8}
                   style={{ paddingRight: '2.5rem' }}
@@ -274,7 +292,7 @@ export default function Signup() {
               style={{ background: roleConfig?.gradient }}
               disabled={loading}
             >
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? t.creatingAccount : t.createAccount}
             </button>
 
             <button
@@ -282,7 +300,7 @@ export default function Signup() {
               className="auth-link-btn"
               onClick={() => { setStep('role'); setError(''); }}
             >
-              ← Change Role
+              {t.changeRole}
             </button>
           </form>
         )}
@@ -291,7 +309,7 @@ export default function Signup() {
         {step === 'verify' && (
           <form onSubmit={handleVerify} className="auth-form">
             <div className="form-group">
-              <label htmlFor="code">Verification Code</label>
+              <label htmlFor="code">{t.verificationCode}</label>
               <input
                 id="code"
                 type="text"
@@ -310,7 +328,7 @@ export default function Signup() {
               style={{ background: roleConfig?.gradient }}
               disabled={loading}
             >
-              {loading ? 'Verifying...' : 'Verify & Continue'}
+              {loading ? t.verifying : t.verifyAndContinue}
             </button>
             <button
               type="button"
@@ -318,15 +336,15 @@ export default function Signup() {
               onClick={handleResendCode}
               disabled={resending}
             >
-              {resending ? 'Sending...' : '📩 Resend Verification Code'}
+              {resending ? t.sending : t.resendCode}
             </button>
           </form>
         )}
 
         {/* Footer */}
         <div className="auth-footer">
-          Already have an account?{' '}
-          <Link to="/login" className="auth-footer-link">Sign In</Link>
+          {t.alreadyHaveAccount}{' '}
+          <Link to="/login" className="auth-footer-link">{t.signIn}</Link>
         </div>
       </div>
     </div>
