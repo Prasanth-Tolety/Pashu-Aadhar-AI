@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Home.css';
 
 export default function Home() {
+  const { user } = useAuth();
+
   return (
     <div className="page home-page">
       <div className="container">
         <div className="home-hero">
           <div className="home-logo">🐄</div>
-          <h1 className="home-title">Pashu-Aadhaar</h1>
+          <h1 className="home-title">पशु आधार</h1>
+          <h2 className="home-title-en">Pashu-Aadhaar AI</h2>
           <p className="home-subtitle">Digital Identity for Livestock</p>
           <p className="home-description">
             Secure biometric enrollment for cattle and livestock using AI-powered
@@ -33,12 +37,23 @@ export default function Home() {
           </div>
         </div>
 
-        <Link to="/enroll" className="btn btn-primary btn-full home-enroll-btn">
-          Start Enrollment
-        </Link>
+        <div className="home-actions">
+          {user ? (
+            <Link to="/dashboard" className="btn btn-primary btn-full home-enroll-btn">
+              Go to Dashboard
+            </Link>
+          ) : (
+            <Link to="/login" className="btn btn-primary btn-full home-enroll-btn">
+              Sign In
+            </Link>
+          )}
+          <Link to="/enroll" className="btn btn-secondary btn-full home-enroll-btn" style={{ marginTop: '0.75rem' }}>
+            Quick Enrollment (No Login)
+          </Link>
+        </div>
 
         <p className="home-note">
-          For farmers, veterinarians, and field operators
+          For farmers, veterinarians, and field operators 🇮🇳
         </p>
       </div>
     </div>
