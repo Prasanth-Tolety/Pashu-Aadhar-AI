@@ -41,6 +41,12 @@ Parameters:
     Type: String
     Default: '*'
     Description: CORS allowed origin (set to your frontend domain in production)
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID for authentication
+  CognitoUserPoolArn:
+    Type: String
+    Description: Cognito User Pool ARN for API Gateway authorizer
 
 Resources:
   # S3 Bucket for animal images
@@ -120,6 +126,28 @@ Resources:
                   - es:ESHttpPost
                   - es:ESHttpPut
                 Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/animals'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/animals/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/owners'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/owners/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/health_records'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/health_records/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/milk_yields'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/milk_yields/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/insurance_policies'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/insurance_policies/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user_role_mapping'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user_role_mapping/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/embeddings'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/embeddings/index/*'
 
   # API Gateway
   PashuAadhaarApi:
@@ -128,11 +156,14 @@ Resources:
       Name: !Sub 'pashu-aadhaar-api-${Stage}'
       StageName: !Ref Stage
       Cors:
-        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: !Sub "'${AllowedOrigin}'"
       Auth:
-        DefaultAuthorizer: NONE
+        DefaultAuthorizer: CognitoAuth
+        Authorizers:
+          CognitoAuth:
+            UserPoolArn: !Ref CognitoUserPoolArn
 
   # GetUploadUrl Lambda
   GetUploadUrlFunction:
@@ -157,12 +188,16 @@ Resources:
             RestApiId: !Ref PashuAadhaarApi
             Path: /upload-url
             Method: GET
+            Auth:
+              Authorizer: NONE
         GetUploadUrlOptions:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
             Path: /upload-url
             Method: OPTIONS
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -200,12 +235,16 @@ Resources:
             RestApiId: !Ref PashuAadhaarApi
             Path: /enroll
             Method: POST
+            Auth:
+              Authorizer: NONE
         EnrollOptions:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
             Path: /enroll
             Method: OPTIONS
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -214,6 +253,158 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - enroll/handler.ts
+
+  # Animals CRUD Lambda
+  AnimalsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-animals-${Stage}'
+      CodeUri: backend/
+      Handler: animals/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Animals CRUD - list, get, update, health records, milk yields
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        ListAnimals:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        ListAnimalsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetAnimal:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        UpdateAnimal:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        GetAnimalOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetHealthRecords:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/health
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddHealthRecord:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/health
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        HealthOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/health
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetMilkYields:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/milk
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddMilkYield:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/milk
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        MilkOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/milk
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - animals/handler.ts
+
+  # Profile Lambda
+  ProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-profile-${Stage}'
+      CodeUri: backend/
+      Handler: profile/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: User profile - returns Cognito claims and DynamoDB owner data
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /me
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        ProfileOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /me
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - profile/handler.ts
 
 Outputs:
   ApiUrl:
@@ -235,3 +426,11 @@ Outputs:
   EnrollFunctionArn:
     Description: Enroll Lambda function ARN
     Value: !GetAtt EnrollFunction.Arn
+
+  AnimalsFunctionArn:
+    Description: Animals Lambda function ARN
+    Value: !GetAtt AnimalsFunction.Arn
+
+  ProfileFunctionArn:
+    Description: Profile Lambda function ARN
+    Value: !GetAtt ProfileFunction.Arn

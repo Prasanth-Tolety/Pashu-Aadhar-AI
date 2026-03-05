@@ -1,7 +1,11 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { SageMakerRuntimeClient, InvokeEndpointCommand } from '@aws-sdk/client-sagemaker-runtime';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { Client as OpenSearchClient } from '@opensearch-project/opensearch';
+import { AwsSigv4Signer } from '@opensearch-project/opensearch/aws';
+import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import {
   createLogger,
   buildResponse,
@@ -16,15 +20,21 @@ import {
 
 const logger = createLogger('enroll');
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-const sagemakerClient = new SageMakerRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const REGION = process.env.AWS_REGION || 'us-east-1';
+const s3Client = new S3Client({ region: REGION });
+const sagemakerClient = new SageMakerRuntimeClient({ region: REGION });
+const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME!;
 const SAGEMAKER_ENDPOINT = process.env.SAGEMAKER_ENDPOINT_NAME!;
-const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT!;
 const OPENSEARCH_INDEX = process.env.OPENSEARCH_INDEX || 'livestock-embeddings';
 const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || String(DEFAULT_SIMILARITY_THRESHOLD));
+const ANIMALS_TABLE = 'animals';
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+
+// Ensure the OpenSearch endpoint has the https:// protocol prefix
+const rawOsEndpoint = process.env.OPENSEARCH_ENDPOINT!;
+const OPENSEARCH_ENDPOINT = rawOsEndpoint.startsWith('https://') ? rawOsEndpoint : `https://${rawOsEndpoint}`;
 
 interface OpenSearchHit {
   _id: string;
@@ -45,9 +55,15 @@ interface OpenSearchResponse {
 
 function getOpenSearchClient(): OpenSearchClient {
   return new OpenSearchClient({
+    ...AwsSigv4Signer({
+      region: REGION,
+      getCredentials: () => {
+        const credentialsProvider = defaultProvider();
+        return credentialsProvider();
+      },
+    }),
     node: OPENSEARCH_ENDPOINT,
     requestTimeout: OPENSEARCH_REQUEST_TIMEOUT_MS,
-    ssl: { rejectUnauthorized: true },
   });
 }
 
@@ -73,7 +89,16 @@ async function getEmbeddingFromSageMaker(imageBuffer: Buffer): Promise<number[]>
     throw new Error('Empty response from SageMaker endpoint');
   }
   const responseText = Buffer.from(response.Body).toString('utf-8');
-  const parsed = JSON.parse(responseText) as { embedding: number[] };
+  let parsed: { embedding: number[] };
+
+  // HuggingFace container may return [json_string, content_type] or plain JSON
+  const raw = JSON.parse(responseText);
+  if (Array.isArray(raw) && typeof raw[0] === 'string') {
+    parsed = JSON.parse(raw[0]) as { embedding: number[] };
+  } else {
+    parsed = raw as { embedding: number[] };
+  }
+
   if (!Array.isArray(parsed.embedding) || parsed.embedding.length === 0) {
     throw new Error('Invalid embedding response from SageMaker');
   }
@@ -185,6 +210,25 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     logger.info('Enrolling new animal', { livestock_id: newLivestockId });
 
     await storeNewEmbedding(newLivestockId, embedding, imageKey);
+
+    // Also save to DynamoDB animals table
+    const enrolledAt = new Date().toISOString();
+    try {
+      await ddbClient.send(new PutCommand({
+        TableName: ANIMALS_TABLE,
+        Item: {
+          livestock_id: newLivestockId,
+          image_key: imageKey,
+          enrolled_at: enrolledAt,
+          species: 'cattle',
+          status: 'active',
+        },
+      }));
+      logger.info('Animal record saved to DynamoDB', { livestock_id: newLivestockId });
+    } catch (ddbErr) {
+      // Non-fatal: OpenSearch enrollment succeeded, DynamoDB is supplementary
+      logger.warn('Failed to save animal to DynamoDB (non-fatal)', ddbErr);
+    }
 
     return buildResponse(
       201,
