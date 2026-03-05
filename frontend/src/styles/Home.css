@@ -396,4 +396,62 @@
   .hero-buttons { flex-direction: column; }
   .roles-grid { grid-template-columns: 1fr; }
   .cta-buttons { flex-direction: column; align-items: center; }
+  .live-stats-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ─── Live Stats Counter ─────────────────────────────────────────── */
+.live-stats-section {
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.live-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.live-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1.5rem 1rem;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(8px);
+  animation: fadeInUp 0.6s ease-out both;
+}
+.live-stat-card:nth-child(2) { animation-delay: 0.1s; }
+.live-stat-card:nth-child(3) { animation-delay: 0.2s; }
+.live-stat-card:nth-child(4) { animation-delay: 0.3s; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.live-stat-icon { font-size: 2rem; }
+
+.live-stat-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-stat-label {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .live-stats-grid { grid-template-columns: 1fr 1fr; }
+}
+

@@ -36,6 +36,12 @@
   color: white;
   margin-bottom: 1.5rem;
   box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.id-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
 }
 
 .id-card-top {
@@ -85,12 +91,64 @@
   font-family: monospace;
 }
 
+/* ─── Stats Summary ───────────────────────────────────────────────── */
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: white;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+  font-size: 1.6rem;
+}
+
+.stat-card > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
 /* ─── Profile Section ─────────────────────────────────────────────── */
 .profile-section {
   background: white;
   border-radius: 14px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: box-shadow 0.3s ease;
+}
+
+.profile-section:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.09);
 }
 
 .profile-section-header {
@@ -130,8 +188,14 @@
 .info-row {
   display: flex;
   justify-content: space-between;
-  padding: 0.6rem 0;
+  padding: 0.6rem 0.5rem;
   border-bottom: 1px solid #f0f0f0;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.info-row:hover {
+  background: #f8f9ff;
 }
 
 .info-row:last-child { border-bottom: none; }

@@ -150,6 +150,8 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/embeddings/index/*'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/access_requests'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/access_requests/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/loan_collateral'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/loan_collateral/index/*'
 
   # API Gateway
   PashuAadhaarApi:
@@ -356,6 +358,54 @@ Resources:
           Properties:
             RestApiId: !Ref PashuAadhaarApi
             Path: /animals/{id}/milk
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetInsurance:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/insurance
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddInsurance:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/insurance
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        InsuranceOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/insurance
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetLoans:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/loans
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddLoan:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/loans
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        LoansOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/loans
             Method: OPTIONS
             Auth:
               Authorizer: NONE

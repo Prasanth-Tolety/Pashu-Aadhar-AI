@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getProfile, updateProfile } from '../services/api';
+import { getProfile, updateProfile, getAnimalsByOwner } from '../services/api';
 import { ROLE_CONFIG, UserRole } from '../types';
 import '../styles/Profile.css';
 
@@ -12,6 +12,7 @@ interface ProfileData {
   role: string;
   owner_id: string | null;
   aadhaar_last4?: string;
+  created_at?: string;
   owner?: {
     owner_id: string;
     name: string;
@@ -30,6 +31,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [animalCount, setAnimalCount] = useState(0);
 
   const [form, setForm] = useState({
     name: '',
@@ -40,14 +42,20 @@ export default function Profile() {
     aadhaar_last4: '',
   });
 
-  const roleConfig = user ? ROLE_CONFIG[user.role as UserRole] : null;
+  const role = (user?.role || 'farmer') as UserRole;
+  const roleConfig = user ? ROLE_CONFIG[role] : null;
   const rolePrefix = roleConfig?.prefix || 'USR';
   const displayId = user?.ownerId
     ? `${rolePrefix}-${user.ownerId.slice(-7).toUpperCase()}`
     : `${rolePrefix}-${user?.userId.slice(-7).toUpperCase()}`;
 
   useEffect(() => {
-    if (idToken) fetchProfile();
+    if (idToken) {
+      fetchProfile();
+      if (role === 'farmer' && user?.ownerId) {
+        getAnimalsByOwner(user.ownerId, idToken).then(a => setAnimalCount(a.length)).catch(() => {});
+      }
+    }
   }, [idToken]);
 
   const fetchProfile = async () => {
@@ -84,6 +92,10 @@ export default function Profile() {
       setSaving(false);
     }
   };
+
+  const memberSince = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
+    : 'N/A';
 
   if (loading) {
     return (
@@ -125,6 +137,24 @@ export default function Profile() {
               <span className="id-card-value">XXXX-XXXX-{form.aadhaar_last4}</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="profile-stats">
+        <div className="stat-card">
+          <span className="stat-icon">📅</span>
+          <div><span className="stat-value">{memberSince}</span><span className="stat-label">Member Since</span></div>
+        </div>
+        {role === 'farmer' && (
+          <div className="stat-card">
+            <span className="stat-icon">🐮</span>
+            <div><span className="stat-value">{animalCount}</span><span className="stat-label">Animals Enrolled</span></div>
+          </div>
+        )}
+        <div className="stat-card">
+          <span className="stat-icon">✅</span>
+          <div><span className="stat-value">Active</span><span className="stat-label">Account Status</span></div>
         </div>
       </div>
 

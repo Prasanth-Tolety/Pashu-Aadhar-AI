@@ -20,6 +20,7 @@ const ANIMALS_TABLE = 'animals';
 const HEALTH_RECORDS_TABLE = 'health_records';
 const MILK_YIELDS_TABLE = 'milk_yields';
 const INSURANCE_TABLE = 'insurance_policies';
+const LOANS_TABLE = 'loan_collateral';
 
 /**
  * GET  /animals?owner_id=XXX        → list animals for an owner (farmer dashboard)
@@ -29,6 +30,10 @@ const INSURANCE_TABLE = 'insurance_policies';
  * POST /animals/{id}                → update animal metadata
  * POST /animals/{id}/health         → add health record (vet)
  * POST /animals/{id}/milk           → add milk yield (farmer)
+ * GET  /animals/{id}/insurance      → get insurance policies
+ * POST /animals/{id}/insurance      → add insurance policy
+ * GET  /animals/{id}/loans          → get loan records
+ * POST /animals/{id}/loans          → add loan record
  */
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   logger.info('Animals API request', {
@@ -84,6 +89,28 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       return await addMilkYield(milkMatch[1], event);
     }
 
+    // GET /animals/{id}/insurance
+    const insuranceMatch = path.match(/^\/animals\/([^/]+)\/insurance$/);
+    if (insuranceMatch && method === 'GET') {
+      return await getInsurancePolicies(insuranceMatch[1]);
+    }
+
+    // POST /animals/{id}/insurance → add insurance policy
+    if (insuranceMatch && method === 'POST') {
+      return await addInsurancePolicy(insuranceMatch[1], event);
+    }
+
+    // GET /animals/{id}/loans
+    const loansMatch = path.match(/^\/animals\/([^/]+)\/loans$/);
+    if (loansMatch && method === 'GET') {
+      return await getLoanRecords(loansMatch[1]);
+    }
+
+    // POST /animals/{id}/loans → add loan record
+    if (loansMatch && method === 'POST') {
+      return await addLoanRecord(loansMatch[1], event);
+    }
+
     return buildErrorResponse(404, 'NOT_FOUND', 'Route not found', ALLOWED_ORIGIN);
   } catch (err) {
     logger.error('Animals API error', err);
@@ -125,7 +152,7 @@ async function getAnimal(livestockId: string) {
   try {
     const insResult = await ddbClient.send(new QueryCommand({
       TableName: INSURANCE_TABLE,
-      IndexName: 'livestock-insurance-index',
+      IndexName: 'livestock-policy-index',
       KeyConditionExpression: 'livestock_id = :lid',
       ExpressionAttributeValues: { ':lid': livestockId },
       Limit: 1,
@@ -260,4 +287,87 @@ async function addMilkYield(livestockId: string, event: APIGatewayProxyEvent) {
   }));
 
   return buildResponse(201, { message: 'Milk yield recorded', yield_id: yieldId }, ALLOWED_ORIGIN);
+}
+
+// ─── Insurance ───────────────────────────────────────────────────────
+
+async function getInsurancePolicies(livestockId: string) {
+  const result = await ddbClient.send(new QueryCommand({
+    TableName: INSURANCE_TABLE,
+    IndexName: 'livestock-policy-index',
+    KeyConditionExpression: 'livestock_id = :lid',
+    ExpressionAttributeValues: { ':lid': livestockId },
+    ScanIndexForward: false,
+  }));
+
+  return buildResponse(200, { policies: result.Items || [] }, ALLOWED_ORIGIN);
+}
+
+async function addInsurancePolicy(livestockId: string, event: APIGatewayProxyEvent) {
+  if (!event.body) {
+    return buildErrorResponse(400, 'MISSING_BODY', 'Request body required', ALLOWED_ORIGIN);
+  }
+
+  const body = JSON.parse(event.body);
+  const policyId = `INS-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+  await ddbClient.send(new PutCommand({
+    TableName: INSURANCE_TABLE,
+    Item: {
+      policy_id: policyId,
+      livestock_id: livestockId,
+      provider: body.provider || 'Unknown',
+      policy_number: body.policy_number || null,
+      coverage_amount: parseFloat(body.coverage_amount) || 0,
+      premium: parseFloat(body.premium) || 0,
+      start_date: body.start_date || new Date().toISOString().split('T')[0],
+      end_date: body.end_date || null,
+      status: body.status || 'active',
+      notes: body.notes || null,
+      created_at: new Date().toISOString(),
+    },
+  }));
+
+  return buildResponse(201, { message: 'Insurance policy added', policy_id: policyId }, ALLOWED_ORIGIN);
+}
+
+// ─── Loans ───────────────────────────────────────────────────────────
+
+async function getLoanRecords(livestockId: string) {
+  const result = await ddbClient.send(new QueryCommand({
+    TableName: LOANS_TABLE,
+    IndexName: 'livestock-loan-index',
+    KeyConditionExpression: 'livestock_id = :lid',
+    ExpressionAttributeValues: { ':lid': livestockId },
+    ScanIndexForward: false,
+  }));
+
+  return buildResponse(200, { loans: result.Items || [] }, ALLOWED_ORIGIN);
+}
+
+async function addLoanRecord(livestockId: string, event: APIGatewayProxyEvent) {
+  if (!event.body) {
+    return buildErrorResponse(400, 'MISSING_BODY', 'Request body required', ALLOWED_ORIGIN);
+  }
+
+  const body = JSON.parse(event.body);
+  const loanId = `LN-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
+  await ddbClient.send(new PutCommand({
+    TableName: LOANS_TABLE,
+    Item: {
+      loan_id: loanId,
+      livestock_id: livestockId,
+      lender: body.lender || 'Unknown',
+      loan_amount: parseFloat(body.loan_amount) || 0,
+      interest_rate: parseFloat(body.interest_rate) || 0,
+      tenure_months: parseInt(body.tenure_months) || 12,
+      disbursement_date: body.disbursement_date || new Date().toISOString().split('T')[0],
+      repayment_status: body.repayment_status || 'active',
+      notes: body.notes || null,
+      created_at: new Date().toISOString(),
+    },
+  }));
+
+  return buildResponse(201, { message: 'Loan record added', loan_id: loanId }, ALLOWED_ORIGIN);
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { resendConfirmationCode } from '../services/auth';
 import { ALL_ROLES, ROLE_CONFIG, UserRole } from '../types';
 import '../styles/Auth.css';
 
@@ -16,10 +17,13 @@ export default function Signup() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [aadhaarLast4, setAadhaarLast4] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const roleConfig = selectedRole ? ROLE_CONFIG[selectedRole] : null;
 
@@ -82,12 +86,28 @@ export default function Signup() {
     }
   };
 
+  const handleResendCode = async () => {
+    setResending(true);
+    setError('');
+    try {
+      const fullPhone = formatPhone(phoneNumber);
+      await resendConfirmationCode(fullPhone);
+      setError('A new verification code has been sent to your phone.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to resend code';
+      setError(msg);
+    } finally {
+      setResending(false);
+    }
+  };
+
   const bgGradient = roleConfig
-    ? roleConfig.gradient
-    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    ? `linear-gradient(160deg, ${roleConfig.color}10 0%, #f0f4ff 40%, ${roleConfig.color}15 100%)`
+    : 'linear-gradient(160deg, #f0f4ff 0%, #e8eaf6 30%, #f3e5f5 70%, #fce4ec 100%)';
 
   return (
     <div className="auth-container" style={{ background: bgGradient }}>
+      <Link to="/" className="auth-home-link">🏠 Home</Link>
       <div className="auth-card">
         {/* Header */}
         <div className="auth-header">
@@ -180,28 +200,72 @@ export default function Signup() {
 
             <div className="form-group">
               <label htmlFor="password">Password *</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 8 characters"
-                required
-                minLength={8}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  required
+                  minLength={8}
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: '0.5rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    color: '#888'
+                  }}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
 
             <div className="form-group">
               <label htmlFor="confirmPassword">Confirm Password *</label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter password"
-                required
-                minLength={8}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                  required
+                  minLength={8}
+                  style={{ paddingRight: '2.5rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: '0.5rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    color: '#888'
+                  }}
+                  tabIndex={-1}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
 
             <button
@@ -247,6 +311,14 @@ export default function Signup() {
               disabled={loading}
             >
               {loading ? 'Verifying...' : 'Verify & Continue'}
+            </button>
+            <button
+              type="button"
+              className="auth-link-btn"
+              onClick={handleResendCode}
+              disabled={resending}
+            >
+              {resending ? 'Sending...' : '📩 Resend Verification Code'}
             </button>
           </form>
         )}

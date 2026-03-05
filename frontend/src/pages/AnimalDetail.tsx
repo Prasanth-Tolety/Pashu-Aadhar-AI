@@ -45,40 +45,81 @@ interface MilkYield {
   total_yield: number;
 }
 
+interface InsurancePolicy {
+  policy_id: string;
+  provider: string;
+  policy_number?: string;
+  coverage_amount: number;
+  premium: number;
+  start_date: string;
+  end_date?: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+}
+
+interface LoanRecord {
+  loan_id: string;
+  lender: string;
+  loan_amount: number;
+  interest_rate: number;
+  tenure_months: number;
+  disbursement_date: string;
+  repayment_status: string;
+  notes?: string;
+  created_at: string;
+}
+
+type TabType = 'details' | 'health' | 'milk' | 'insurance' | 'loans';
+
 // Role-based permissions config
 const ROLE_PERMISSIONS: Record<UserRole, {
   canViewDetails: boolean;
   canViewHealth: boolean;
   canViewMilk: boolean;
+  canViewInsurance: boolean;
+  canViewLoans: boolean;
   canEditDetails: boolean;
   canAddHealth: boolean;
   canAddMilk: boolean;
+  canAddInsurance: boolean;
+  canAddLoan: boolean;
   canViewLocation: boolean;
   canViewOwner: boolean;
 }> = {
   farmer: {
     canViewDetails: true, canViewHealth: true, canViewMilk: true,
+    canViewInsurance: true, canViewLoans: true,
     canEditDetails: true, canAddHealth: true, canAddMilk: true,
+    canAddInsurance: true, canAddLoan: true,
     canViewLocation: true, canViewOwner: true,
   },
   veterinarian: {
     canViewDetails: true, canViewHealth: true, canViewMilk: false,
+    canViewInsurance: false, canViewLoans: false,
     canEditDetails: false, canAddHealth: true, canAddMilk: false,
+    canAddInsurance: false, canAddLoan: false,
     canViewLocation: false, canViewOwner: false,
   },
   insurer: {
     canViewDetails: true, canViewHealth: true, canViewMilk: false,
+    canViewInsurance: true, canViewLoans: false,
     canEditDetails: false, canAddHealth: false, canAddMilk: false,
+    canAddInsurance: true, canAddLoan: false,
     canViewLocation: false, canViewOwner: false,
   },
   government: {
     canViewDetails: true, canViewHealth: true, canViewMilk: true,
+    canViewInsurance: true, canViewLoans: true,
     canEditDetails: false, canAddHealth: false, canAddMilk: false,
+    canAddInsurance: false, canAddLoan: false,
     canViewLocation: true, canViewOwner: true,
   },
   admin: {
     canViewDetails: true, canViewHealth: true, canViewMilk: true,
+    canViewInsurance: true, canViewLoans: true,
     canEditDetails: true, canAddHealth: true, canAddMilk: true,
+    canAddInsurance: true, canAddLoan: true,
     canViewLocation: true, canViewOwner: true,
   },
 };
@@ -95,9 +136,11 @@ export default function AnimalDetail() {
   const [animal, setAnimal] = useState<Animal | null>(null);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [milkYields, setMilkYields] = useState<MilkYield[]>([]);
+  const [insurancePolicies, setInsurancePolicies] = useState<InsurancePolicy[]>([]);
+  const [loanRecords, setLoanRecords] = useState<LoanRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'details' | 'health' | 'milk'>('details');
+  const [activeTab, setActiveTab] = useState<TabType>('details');
 
   // Editing state for farmer/admin
   const [editing, setEditing] = useState(false);
@@ -120,6 +163,29 @@ export default function AnimalDetail() {
     yield_date: new Date().toISOString().split('T')[0],
   });
 
+  // Insurance form
+  const [showInsuranceForm, setShowInsuranceForm] = useState(false);
+  const [insuranceForm, setInsuranceForm] = useState({
+    provider: '',
+    policy_number: '',
+    coverage_amount: '',
+    premium: '',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: '',
+    notes: '',
+  });
+
+  // Loan form
+  const [showLoanForm, setShowLoanForm] = useState(false);
+  const [loanForm, setLoanForm] = useState({
+    lender: '',
+    loan_amount: '',
+    interest_rate: '',
+    tenure_months: '',
+    disbursement_date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+
   const headers = { Authorization: idToken || '' };
 
   useEffect(() => {
@@ -129,16 +195,20 @@ export default function AnimalDetail() {
   const fetchAnimalData = async () => {
     try {
       setLoading(true);
-      const [animalRes, healthRes, milkRes] = await Promise.all([
+      const [animalRes, healthRes, milkRes, insuranceRes, loansRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/animals/${id}`, { headers }),
         axios.get(`${API_BASE_URL}/animals/${id}/health`, { headers }).catch(() => ({ data: { records: [] } })),
         axios.get(`${API_BASE_URL}/animals/${id}/milk`, { headers }).catch(() => ({ data: { yields: [] } })),
+        axios.get(`${API_BASE_URL}/animals/${id}/insurance`, { headers }).catch(() => ({ data: { policies: [] } })),
+        axios.get(`${API_BASE_URL}/animals/${id}/loans`, { headers }).catch(() => ({ data: { loans: [] } })),
       ]);
 
       setAnimal(animalRes.data.animal);
       setEditForm(animalRes.data.animal || {});
       setHealthRecords(healthRes.data.records || []);
       setMilkYields(milkRes.data.yields || []);
+      setInsurancePolicies(insuranceRes.data.policies || []);
+      setLoanRecords(loansRes.data.loans || []);
     } catch {
       setError('Failed to load animal data');
     } finally {
@@ -179,6 +249,32 @@ export default function AnimalDetail() {
       setMilkYields(res.data.yields || []);
     } catch {
       alert('Failed to add milk yield');
+    }
+  };
+
+  const handleAddInsurance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API_BASE_URL}/animals/${id}/insurance`, insuranceForm, { headers });
+      setShowInsuranceForm(false);
+      setInsuranceForm({ provider: '', policy_number: '', coverage_amount: '', premium: '', start_date: new Date().toISOString().split('T')[0], end_date: '', notes: '' });
+      const res = await axios.get(`${API_BASE_URL}/animals/${id}/insurance`, { headers });
+      setInsurancePolicies(res.data.policies || []);
+    } catch {
+      alert('Failed to add insurance policy');
+    }
+  };
+
+  const handleAddLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API_BASE_URL}/animals/${id}/loans`, loanForm, { headers });
+      setShowLoanForm(false);
+      setLoanForm({ lender: '', loan_amount: '', interest_rate: '', tenure_months: '', disbursement_date: new Date().toISOString().split('T')[0], notes: '' });
+      const res = await axios.get(`${API_BASE_URL}/animals/${id}/loans`, { headers });
+      setLoanRecords(res.data.loans || []);
+    } catch {
+      alert('Failed to add loan record');
     }
   };
 
@@ -227,27 +323,28 @@ export default function AnimalDetail() {
       {/* Tabs */}
       <div className="tabs">
         {perms.canViewDetails && (
-          <button
-            className={`tab ${activeTab === 'details' ? 'active' : ''}`}
-            onClick={() => setActiveTab('details')}
-          >
+          <button className={`tab ${activeTab === 'details' ? 'active' : ''}`} onClick={() => setActiveTab('details')}>
             📋 Details
           </button>
         )}
         {perms.canViewHealth && (
-          <button
-            className={`tab ${activeTab === 'health' ? 'active' : ''}`}
-            onClick={() => setActiveTab('health')}
-          >
+          <button className={`tab ${activeTab === 'health' ? 'active' : ''}`} onClick={() => setActiveTab('health')}>
             💉 Health ({healthRecords.length})
           </button>
         )}
         {perms.canViewMilk && (
-          <button
-            className={`tab ${activeTab === 'milk' ? 'active' : ''}`}
-            onClick={() => setActiveTab('milk')}
-          >
+          <button className={`tab ${activeTab === 'milk' ? 'active' : ''}`} onClick={() => setActiveTab('milk')}>
             🥛 Milk ({milkYields.length})
+          </button>
+        )}
+        {perms.canViewInsurance && (
+          <button className={`tab ${activeTab === 'insurance' ? 'active' : ''}`} onClick={() => setActiveTab('insurance')}>
+            🛡️ Insurance ({insurancePolicies.length})
+          </button>
+        )}
+        {perms.canViewLoans && (
+          <button className={`tab ${activeTab === 'loans' ? 'active' : ''}`} onClick={() => setActiveTab('loans')}>
+            💰 Loans ({loanRecords.length})
           </button>
         )}
       </div>
@@ -437,7 +534,7 @@ export default function AnimalDetail() {
         )}
 
         {activeTab === 'milk' && perms.canViewMilk && (
-          <div className="milk-tab">
+          <div className="milk-tab tab-panel-anim">
             {perms.canAddMilk && (
               <button
                 onClick={() => setShowMilkForm(!showMilkForm)}
@@ -507,6 +604,152 @@ export default function AnimalDetail() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Insurance Tab */}
+        {activeTab === 'insurance' && perms.canViewInsurance && (
+          <div className="insurance-tab tab-panel-anim">
+            {perms.canAddInsurance && (
+              <button onClick={() => setShowInsuranceForm(!showInsuranceForm)} className="add-record-btn">
+                {showInsuranceForm ? 'Cancel' : '+ Add Insurance Policy'}
+              </button>
+            )}
+
+            {showInsuranceForm && (
+              <form onSubmit={handleAddInsurance} className="record-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Provider</label>
+                    <input type="text" value={insuranceForm.provider} onChange={(e) => setInsuranceForm({ ...insuranceForm, provider: e.target.value })} placeholder="e.g., IFFCO Tokio" required />
+                  </div>
+                  <div className="form-group">
+                    <label>Policy Number</label>
+                    <input type="text" value={insuranceForm.policy_number} onChange={(e) => setInsuranceForm({ ...insuranceForm, policy_number: e.target.value })} placeholder="POL-XXXX" />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Coverage Amount (₹)</label>
+                    <input type="number" value={insuranceForm.coverage_amount} onChange={(e) => setInsuranceForm({ ...insuranceForm, coverage_amount: e.target.value })} placeholder="50000" required />
+                  </div>
+                  <div className="form-group">
+                    <label>Premium (₹)</label>
+                    <input type="number" value={insuranceForm.premium} onChange={(e) => setInsuranceForm({ ...insuranceForm, premium: e.target.value })} placeholder="1200" />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Start Date</label>
+                    <input type="date" value={insuranceForm.start_date} onChange={(e) => setInsuranceForm({ ...insuranceForm, start_date: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label>End Date</label>
+                    <input type="date" value={insuranceForm.end_date} onChange={(e) => setInsuranceForm({ ...insuranceForm, end_date: e.target.value })} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea value={insuranceForm.notes} onChange={(e) => setInsuranceForm({ ...insuranceForm, notes: e.target.value })} placeholder="Additional notes..." rows={2} />
+                </div>
+                <button type="submit" className="submit-btn">Save Policy</button>
+              </form>
+            )}
+
+            {insurancePolicies.length === 0 ? (
+              <div className="empty-records">
+                <p>🛡️ No insurance policies recorded</p>
+                <p className="empty-hint">Add an insurance policy to track coverage for this animal</p>
+              </div>
+            ) : (
+              <div className="records-list">
+                {insurancePolicies.map((pol) => (
+                  <div key={pol.policy_id} className="record-card insurance-card">
+                    <div className="record-header">
+                      <span className="record-type type-insurance">{pol.status?.toUpperCase() || 'ACTIVE'}</span>
+                      <span className="record-date">{pol.start_date}{pol.end_date ? ` → ${pol.end_date}` : ''}</span>
+                    </div>
+                    <div className="insurance-details">
+                      <p className="record-detail"><strong>Provider:</strong> {pol.provider}</p>
+                      {pol.policy_number && <p className="record-detail"><strong>Policy #:</strong> {pol.policy_number}</p>}
+                      <p className="record-detail"><strong>Coverage:</strong> ₹{pol.coverage_amount?.toLocaleString('en-IN')}</p>
+                      {pol.premium > 0 && <p className="record-detail"><strong>Premium:</strong> ₹{pol.premium?.toLocaleString('en-IN')}/year</p>}
+                    </div>
+                    {pol.notes && <p className="record-detail note-text">{pol.notes}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Loans Tab */}
+        {activeTab === 'loans' && perms.canViewLoans && (
+          <div className="loans-tab tab-panel-anim">
+            {perms.canAddLoan && (
+              <button onClick={() => setShowLoanForm(!showLoanForm)} className="add-record-btn">
+                {showLoanForm ? 'Cancel' : '+ Add Loan Record'}
+              </button>
+            )}
+
+            {showLoanForm && (
+              <form onSubmit={handleAddLoan} className="record-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Lender / Bank</label>
+                    <input type="text" value={loanForm.lender} onChange={(e) => setLoanForm({ ...loanForm, lender: e.target.value })} placeholder="e.g., SBI, NABARD" required />
+                  </div>
+                  <div className="form-group">
+                    <label>Loan Amount (₹)</label>
+                    <input type="number" value={loanForm.loan_amount} onChange={(e) => setLoanForm({ ...loanForm, loan_amount: e.target.value })} placeholder="100000" required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Interest Rate (%)</label>
+                    <input type="number" step="0.1" value={loanForm.interest_rate} onChange={(e) => setLoanForm({ ...loanForm, interest_rate: e.target.value })} placeholder="7.5" />
+                  </div>
+                  <div className="form-group">
+                    <label>Tenure (months)</label>
+                    <input type="number" value={loanForm.tenure_months} onChange={(e) => setLoanForm({ ...loanForm, tenure_months: e.target.value })} placeholder="12" />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Disbursement Date</label>
+                  <input type="date" value={loanForm.disbursement_date} onChange={(e) => setLoanForm({ ...loanForm, disbursement_date: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea value={loanForm.notes} onChange={(e) => setLoanForm({ ...loanForm, notes: e.target.value })} placeholder="Additional notes..." rows={2} />
+                </div>
+                <button type="submit" className="submit-btn">Save Loan</button>
+              </form>
+            )}
+
+            {loanRecords.length === 0 ? (
+              <div className="empty-records">
+                <p>💰 No loan records</p>
+                <p className="empty-hint">Add a loan record to track livestock-backed financing</p>
+              </div>
+            ) : (
+              <div className="records-list">
+                {loanRecords.map((loan) => (
+                  <div key={loan.loan_id} className="record-card loan-card">
+                    <div className="record-header">
+                      <span className={`record-type type-loan-${loan.repayment_status}`}>{loan.repayment_status?.toUpperCase() || 'ACTIVE'}</span>
+                      <span className="record-date">{loan.disbursement_date}</span>
+                    </div>
+                    <div className="loan-details">
+                      <p className="record-detail"><strong>Lender:</strong> {loan.lender}</p>
+                      <p className="record-detail"><strong>Amount:</strong> ₹{loan.loan_amount?.toLocaleString('en-IN')}</p>
+                      {loan.interest_rate > 0 && <p className="record-detail"><strong>Interest:</strong> {loan.interest_rate}% p.a.</p>}
+                      {loan.tenure_months > 0 && <p className="record-detail"><strong>Tenure:</strong> {loan.tenure_months} months</p>}
+                    </div>
+                    {loan.notes && <p className="record-detail note-text">{loan.notes}</p>}
+                  </div>
+                ))}
               </div>
             )}
           </div>

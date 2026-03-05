@@ -2,8 +2,8 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAnimalDetection } from '../../hooks/useAnimalDetection';
 import './CameraCapture.css';
 
-// Model hosted on your CloudFront CDN
-const MODEL_URL = `${import.meta.env.VITE_CDN_URL || ''}/models/yolov8n.onnx`;
+// Model hosted on your CloudFront CDN (yolov8s — same COCO-80 output format)
+const MODEL_URL = `${import.meta.env.VITE_CDN_URL || ''}/models/yolov8s.onnx`;
 
 interface CameraCaptureProps {
   onCapture: (file: File) => void;

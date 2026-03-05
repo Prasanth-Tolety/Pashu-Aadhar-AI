@@ -105,3 +105,41 @@ export async function getAccessibleAnimals(token: string): Promise<Animal[]> {
   const res = await apiClient.get('/access-requests/animals', { headers: authHeaders(token) });
   return res.data.animals || [];
 }
+
+// ─── Insurance ───────────────────────────────────────────────────────
+export async function getInsurancePolicies(livestockId: string, token: string) {
+  const res = await apiClient.get(`/animals/${livestockId}/insurance`, {
+    headers: authHeaders(token),
+  });
+  return res.data.policies || [];
+}
+
+export async function addInsurancePolicy(
+  livestockId: string,
+  data: Record<string, unknown>,
+  token: string
+) {
+  const res = await apiClient.post(`/animals/${livestockId}/insurance`, data, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+// ─── Loans ───────────────────────────────────────────────────────────
+export async function getLoanRecords(livestockId: string, token: string) {
+  const res = await apiClient.get(`/animals/${livestockId}/loans`, {
+    headers: authHeaders(token),
+  });
+  return res.data.loans || [];
+}
+
+export async function addLoanRecord(
+  livestockId: string,
+  data: Record<string, unknown>,
+  token: string
+) {
+  const res = await apiClient.post(`/animals/${livestockId}/loans`, data, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}

@@ -2,11 +2,36 @@
 .auth-container {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(160deg, #f0f4ff 0%, #e8eaf6 30%, #f3e5f5 70%, #fce4ec 100%);
   padding: 1rem;
-  transition: background 0.4s ease;
+  transition: background 0.5s ease;
+}
+
+.auth-home-link {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(102,126,234,0.2);
+  transition: all 0.25s;
+}
+.auth-home-link:hover {
+  background: rgba(255,255,255,0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102,126,234,0.15);
 }
 
 .auth-card {
@@ -15,8 +40,9 @@
   padding: 2.5rem;
   width: 100%;
   max-width: 480px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 40px rgba(102, 126, 234, 0.12), 0 2px 12px rgba(0,0,0,0.06);
   animation: slideUp 0.35s ease-out;
+  position: relative;
 }
 
 @keyframes slideUp {
