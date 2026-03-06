@@ -8,11 +8,12 @@ const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGIO
 const cognitoClient = new CognitoIdentityProviderClient({ region: REGION });
 
 const OWNERS_TABLE = 'owners';
+const USER_ROLE_MAPPING_TABLE = 'user_role_mapping';
 
 /**
  * Cognito Post-Confirmation trigger.
  * Fires after a user successfully verifies their phone number (OTP).
- * Creates an owner record in DynamoDB and writes the owner_id back to Cognito.
+ * Creates an owner record in DynamoDB, a role mapping, and writes the owner_id back to Cognito.
  */
 export async function handler(
   event: PostConfirmationTriggerEvent,
@@ -59,6 +60,29 @@ export async function handler(
       console.log('Owner record created in DynamoDB', { owner_id: ownerId });
     } else {
       console.log('Owner record already exists', { owner_id: ownerId });
+    }
+
+    // Create user_role_mapping entry
+    const mappingId = `MAP-${userId.substring(0, 8)}`;
+    try {
+      await ddbClient.send(new PutCommand({
+        TableName: USER_ROLE_MAPPING_TABLE,
+        Item: {
+          mapping_id: mappingId,
+          user_id: userId,
+          role: role,
+          owner_id: ownerId,
+          created_at: new Date().toISOString(),
+        },
+        ConditionExpression: 'attribute_not_exists(mapping_id)',
+      }));
+      console.log('User role mapping created', { mapping_id: mappingId });
+    } catch (mapErr: unknown) {
+      // ConditionalCheckFailedException means it already exists — that's fine
+      const errName = (mapErr as { name?: string })?.name;
+      if (errName !== 'ConditionalCheckFailedException') {
+        console.warn('Failed to create user role mapping (non-fatal)', mapErr);
+      }
     }
 
     // Write the owner_id back to Cognito custom attribute
