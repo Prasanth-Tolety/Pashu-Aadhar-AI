@@ -323,6 +323,22 @@ export interface Translations {
   // Upload Progress
   uploadingImage: string;
   analyzingBiometrics: string;
+
+  // Error messages (auth / signup)
+  aadhaarExact4: string;
+  signupFailed: string;
+  accountExistsUnverified: string;
+  accountExistsSignIn: string;
+  verificationFailed: string;
+  resendCodeSuccess: string;
+  resendCodeFailed: string;
+  invalidPasswordFormat: string;
+  invalidPhoneFormat: string;
+  codeMismatch: string;
+  expiredCode: string;
+  smsDeliveryError: string;
+  unknownError: string;
+  incorrectCredentials: string;
 }
 
 // ─── English (default) ──────────────────────────────────────────────
@@ -620,6 +636,22 @@ const en: Translations = {
   // Upload Progress
   uploadingImage: 'Uploading image',
   analyzingBiometrics: 'Analyzing animal biometrics...',
+
+  // Error messages (auth / signup)
+  aadhaarExact4: 'Please enter exactly the last 4 digits of Aadhaar',
+  signupFailed: 'Signup failed. Please try again.',
+  accountExistsUnverified: 'Account exists but is unverified. A new verification code has been sent.',
+  accountExistsSignIn: 'An account with this phone number already exists. Please sign in instead.',
+  verificationFailed: 'Verification failed. Please try again.',
+  resendCodeSuccess: 'A new verification code has been sent to your phone.',
+  resendCodeFailed: 'Failed to resend verification code.',
+  invalidPasswordFormat: 'Password must have at least 8 characters with uppercase, lowercase, number, and special character.',
+  invalidPhoneFormat: 'Please enter a valid 10-digit Indian phone number.',
+  codeMismatch: 'Invalid verification code. Please check and try again.',
+  expiredCode: 'Verification code has expired. Please request a new one.',
+  smsDeliveryError: 'Unable to send SMS. Please ensure your phone number is correct and try again.',
+  unknownError: 'An unexpected error occurred. Please try again.',
+  incorrectCredentials: 'Incorrect phone number or password. Please try again.',
 };
 
 // ─── Hindi ──────────────────────────────────────────────────────────
@@ -914,6 +946,21 @@ const hi: Translations = {
 
   uploadingImage: 'छवि अपलोड हो रही है',
   analyzingBiometrics: 'पशु बायोमेट्रिक्स का विश्लेषण...',
+
+  aadhaarExact4: 'कृपया आधार के अंतिम 4 अंक ही दर्ज करें',
+  signupFailed: 'पंजीकरण विफल। कृपया पुनः प्रयास करें।',
+  accountExistsUnverified: 'खाता मौजूद है लेकिन असत्यापित है। नया सत्यापन कोड भेजा गया है।',
+  accountExistsSignIn: 'इस फ़ोन नंबर से पहले से खाता मौजूद है। कृपया साइन इन करें।',
+  verificationFailed: 'सत्यापन विफल। कृपया पुनः प्रयास करें।',
+  resendCodeSuccess: 'आपके फ़ोन पर नया सत्यापन कोड भेजा गया है।',
+  resendCodeFailed: 'सत्यापन कोड पुनः भेजने में विफल।',
+  invalidPasswordFormat: 'पासवर्ड में कम से कम 8 अक्षर, एक बड़ा अक्षर, एक अंक और एक विशेष चिह्न होना चाहिए।',
+  invalidPhoneFormat: 'कृपया एक वैध 10-अंकीय भारतीय फ़ोन नंबर दर्ज करें।',
+  codeMismatch: 'गलत सत्यापन कोड। कृपया जाँचें और पुनः प्रयास करें।',
+  expiredCode: 'सत्यापन कोड की अवधि समाप्त हो गई है। कृपया नया अनुरोध करें।',
+  smsDeliveryError: 'SMS भेजने में असमर्थ। कृपया अपना फ़ोन नंबर सही सुनिश्चित करें और पुनः प्रयास करें।',
+  unknownError: 'एक अप्रत्याशित त्रुटि हुई। कृपया पुनः प्रयास करें।',
+  incorrectCredentials: 'गलत फ़ोन नंबर या पासवर्ड। कृपया पुनः प्रयास करें।',
 };
 
 // ─── Telugu ─────────────────────────────────────────────────────────
@@ -1208,6 +1255,21 @@ const te: Translations = {
 
   uploadingImage: 'చిత్రం అప్‌లోడ్ అవుతోంది',
   analyzingBiometrics: 'పశువు బయోమెట్రిక్స్ విశ్లేషిస్తోంది...',
+
+  aadhaarExact4: 'దయచేసి ఆధార్ చివరి 4 అంకెలు మాత్రమే నమోదు చేయండి',
+  signupFailed: 'నమోదు విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+  accountExistsUnverified: 'ఖాతా ఉంది కానీ ధృవీకరించబడలేదు. కొత్త ధృవీకరణ కోడ్ పంపబడింది.',
+  accountExistsSignIn: 'ఈ ఫోన్ నంబర్‌తో ఖాతా ఇప్పటికే ఉంది. దయచేసి సైన్ ఇన్ చేయండి.',
+  verificationFailed: 'ధృవీకరణ విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+  resendCodeSuccess: 'మీ ఫోన్‌కు కొత్త ధృవీకరణ కోడ్ పంపబడింది.',
+  resendCodeFailed: 'ధృవీకరణ కోడ్ మళ్ళీ పంపడం విఫలమైంది.',
+  invalidPasswordFormat: 'పాస్‌వర్డ్‌లో కనీసం 8 అక్షరాలు, పెద్ద అక్షరం, చిన్న అక్షరం, సంఖ్య మరియు ప్రత్యేక అక్షరం ఉండాలి.',
+  invalidPhoneFormat: 'దయచేసి చెల్లుబాటు అయ్యే 10-అంకెల భారతీయ ఫోన్ నంబర్ నమోదు చేయండి.',
+  codeMismatch: 'తప్పు ధృవీకరణ కోడ్. దయచేసి తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి.',
+  expiredCode: 'ధృవీకరణ కోడ్ గడువు తీరిపోయింది. దయచేసి కొత్తది అభ్యర్థించండి.',
+  smsDeliveryError: 'SMS పంపడం సాధ్యం కాలేదు. దయచేసి మీ ఫోన్ నంబర్ సరైనదని నిర్ధారించుకుని మళ్ళీ ప్రయత్నించండి.',
+  unknownError: 'ఊహించని లోపం జరిగింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+  incorrectCredentials: 'తప్పు ఫోన్ నంబర్ లేదా పాస్‌వర్డ్. దయచేసి మళ్ళీ ప్రయత్నించండి.',
 };
 
 // ─── Tamil ──────────────────────────────────────────────────────────
@@ -1502,6 +1564,21 @@ const ta: Translations = {
 
   uploadingImage: 'படம் பதிவேற்றப்படுகிறது',
   analyzingBiometrics: 'விலங்கு பயோமெட்ரிக்ஸ் பகுப்பாய்வு...',
+
+  aadhaarExact4: 'ஆதார் எண்ணின் கடைசி 4 இலக்கங்களை மட்டும் உள்ளிடவும்',
+  signupFailed: 'பதிவு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',
+  accountExistsUnverified: 'கணக்கு உள்ளது ஆனால் சரிபார்க்கப்படவில்லை. புதிய சரிபார்ப்பு குறியீடு அனுப்பப்பட்டது.',
+  accountExistsSignIn: 'இந்த தொலைபேசி எண்ணில் ஏற்கனவே கணக்கு உள்ளது. உள்நுழையவும்.',
+  verificationFailed: 'சரிபார்ப்பு தோல்வி. மீண்டும் முயற்சிக்கவும்.',
+  resendCodeSuccess: 'உங்கள் தொலைபேசிக்கு புதிய சரிபார்ப்பு குறியீடு அனுப்பப்பட்டது.',
+  resendCodeFailed: 'சரிபார்ப்பு குறியீட்டை மீண்டும் அனுப்ப முடியவில்லை.',
+  invalidPasswordFormat: 'கடவுச்சொல்லில் குறைந்தது 8 எழுத்துகள், பெரிய, சிறிய எழுத்து, எண் மற்றும் சிறப்பு எழுத்து இருக்க வேண்டும்.',
+  invalidPhoneFormat: 'சரியான 10-இலக்க இந்திய தொலைபேசி எண்ணை உள்ளிடவும்.',
+  codeMismatch: 'தவறான சரிபார்ப்பு குறியீடு. சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+  expiredCode: 'சரிபார்ப்பு குறியீடு காலாவதியானது. புதியதை கோரவும்.',
+  smsDeliveryError: 'SMS அனுப்ப முடியவில்லை. உங்கள் தொலைபேசி எண் சரியானது என்பதை உறுதிசெய்து மீண்டும் முயற்சிக்கவும்.',
+  unknownError: 'எதிர்பாராத பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.',
+  incorrectCredentials: 'தவறான தொலைபேசி எண் அல்லது கடவுச்சொல். மீண்டும் முயற்சிக்கவும்.',
 };
 
 // ─── Kannada ────────────────────────────────────────────────────────

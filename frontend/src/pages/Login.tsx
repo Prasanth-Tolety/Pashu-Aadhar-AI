@@ -27,6 +27,20 @@ export default function Login() {
     return `+${cleaned}`;
   };
 
+  /** Convert raw Cognito/AWS error messages into user-friendly translated text */
+  const friendlyError = (err: unknown): string => {
+    const raw = err instanceof Error ? err.message : String(err);
+    const lc = raw.toLowerCase();
+
+    if (lc.includes('incorrect username or password') || lc.includes('not authorized')) return t.incorrectCredentials || raw;
+    if (lc.includes('user does not exist') || lc.includes('user not found')) return t.incorrectCredentials || raw;
+    if (lc.includes('password') && (lc.includes('policy') || lc.includes('invalid'))) return t.invalidPasswordFormat || raw;
+    if (lc.includes('codemismatch')) return t.codeMismatch || raw;
+    if (lc.includes('expired')) return t.expiredCode || raw;
+    if (lc.includes('limit exceeded') || lc.includes('too many')) return t.unknownError || raw;
+    return raw;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -35,8 +49,7 @@ export default function Login() {
     try {
       await login(formatPhoneNumber(phoneNumber), password);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed';
-      setError(message);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -47,12 +60,12 @@ export default function Login() {
     setError('');
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t.passwordsDoNotMatch);
       return;
     }
 
     if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t.passwordMinChars);
       return;
     }
 
@@ -61,8 +74,7 @@ export default function Login() {
       await completeNewPassword(newPassword);
       navigate('/dashboard');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to set new password';
-      setError(message);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }

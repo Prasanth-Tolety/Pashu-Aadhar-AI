@@ -25,6 +25,7 @@ export default function Signup() {
   const [aadhaarLast4, setAadhaarLast4] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
 
@@ -33,6 +34,22 @@ export default function Signup() {
   const formatPhone = (phone: string) => {
     const cleaned = phone.replace(/\D/g, '');
     return cleaned.startsWith('91') ? `+${cleaned}` : `+91${cleaned}`;
+  };
+
+  /** Convert raw Cognito/AWS error messages into user-friendly translated text */
+  const friendlyError = (err: unknown): string => {
+    const raw = err instanceof Error ? err.message : String(err);
+    const lc = raw.toLowerCase();
+
+    if (lc.includes('password') && (lc.includes('policy') || lc.includes('invalid'))) return t.invalidPasswordFormat;
+    if (lc.includes('schema') || lc.includes('attribute')) return t.signupFailed;
+    if (lc.includes('codemismatch') || lc.includes('code mismatch')) return t.codeMismatch;
+    if (lc.includes('expiredcode') || lc.includes('expired')) return t.expiredCode;
+    if (lc.includes('invalid phone') || lc.includes('invalid parameter')) return t.invalidPhoneFormat;
+    if (lc.includes('sms') || lc.includes('delivery')) return t.smsDeliveryError;
+    if (lc.includes('limit exceeded') || lc.includes('too many')) return t.unknownError;
+    // Return the raw message for anything else — it's usually specific enough
+    return raw;
   };
 
   const handleRoleSelect = (role: UserRole) => {
@@ -44,6 +61,7 @@ export default function Signup() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
 
     if (password !== confirmPassword) {
       setError(t.passwordsDoNotMatch);
@@ -54,7 +72,7 @@ export default function Signup() {
       return;
     }
     if (aadhaarLast4 && aadhaarLast4.length !== 4) {
-      setError('Please enter exactly last 4 digits of Aadhaar');
+      setError(t.aadhaarExact4);
       return;
     }
 
@@ -64,19 +82,19 @@ export default function Signup() {
       await signup(fullPhone, password, name, selectedRole!, aadhaarLast4 || undefined);
       setStep('verify');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Signup failed';
+      const msg = err instanceof Error ? err.message : '';
       // If username already exists but UNCONFIRMED, resend code and go to verify step
       if (msg.includes('already exists') || msg.includes('UsernameExistsException')) {
         try {
           const fullPhone = formatPhone(phoneNumber);
           await resendConfirmationCode(fullPhone);
-          setError('Account exists but unverified. A new verification code has been sent.');
+          setInfo(t.accountExistsUnverified);
           setStep('verify');
         } catch {
-          setError('An account with this phone number already exists. Please sign in instead.');
+          setError(t.accountExistsSignIn);
         }
       } else {
-        setError(msg);
+        setError(friendlyError(err));
       }
     } finally {
       setLoading(false);
@@ -86,6 +104,7 @@ export default function Signup() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
     try {
       const fullPhone = formatPhone(phoneNumber);
@@ -94,8 +113,7 @@ export default function Signup() {
       await login(fullPhone, password);
       navigate('/dashboard');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Verification failed';
-      setError(msg);
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -104,13 +122,13 @@ export default function Signup() {
   const handleResendCode = async () => {
     setResending(true);
     setError('');
+    setInfo('');
     try {
       const fullPhone = formatPhone(phoneNumber);
       await resendConfirmationCode(fullPhone);
-      setError('A new verification code has been sent to your phone.');
+      setInfo(t.resendCodeSuccess);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to resend code';
-      setError(msg);
+      setError(friendlyError(err));
     } finally {
       setResending(false);
     }
@@ -145,6 +163,7 @@ export default function Signup() {
         </div>
 
         {error && <div className="auth-error">{error}</div>}
+        {info && <div className="auth-info">{info}</div>}
 
         {/* Step 1: Role Selection */}
         {step === 'role' && (
