@@ -1,10 +1,20 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { useAnimalDetection } from '../../hooks/useAnimalDetection';
+import { useCowDetection, type CowDetection } from '../../hooks/useCowDetection';
+import { useMuzzleDetection, type MuzzleDetection } from '../../hooks/useMuzzleDetection';
+import { analyzeFrame, resetAssistant, type QualityResult } from '../../utils/captureAssistant';
+import { cropMuzzleFromVideo, getMuzzleCropPreview } from '../../utils/muzzleCropper';
 import { useLanguage } from '../../context/LanguageContext';
 import './CameraCapture.css';
 
-// Model hosted on your CloudFront CDN (yolov8s — same COCO-80 output format)
-const MODEL_URL = `${import.meta.env.VITE_CDN_URL || ''}/models/yolov8s.onnx`;
+// ─── Model URLs ──────────────────────────────────────────────────────
+const CDN = import.meta.env.VITE_CDN_URL || '';
+const COW_MODEL_URL = `${CDN}/models/cow.onnx`;
+const MUZZLE_MODEL_URL = `${CDN}/models/muzzle.onnx`;
+
+// ─── Timing constants ────────────────────────────────────────────────
+const MUZZLE_STABLE_MS = 1000;   // muzzle must be detected 1s continuously to "lock"
+const CAPTURE_ANIM_MS = 1800;    // slow zoom-in + highlight animation
+const OVERLAY_FPS = 20;          // overlay redraw rate
 
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
@@ -13,36 +23,41 @@ interface CameraCaptureProps {
 
 export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [autoCapturing, setAutoCapturing] = useState(false);
   const { t } = useLanguage();
 
-  const {
-    isModelLoading,
-    isModelReady,
-    bestDetection,
-    detections,
-    muzzleQuality,
-    startDetection,
-    stopDetection,
-  } = useAnimalDetection(MODEL_URL);
+  // ─── Detection hooks (both run simultaneously) ─────────────────────
+  const cow = useCowDetection(COW_MODEL_URL);
+  const muzzleDet = useMuzzleDetection(MUZZLE_MODEL_URL);
 
-  // Good shot = cow detected with high confidence AND muzzle quality score ≥ 0.75
-  const isGoodShot =
-    bestDetection !== null &&
-    bestDetection.confidence >= 0.65 &&
-    muzzleQuality !== null &&
-    muzzleQuality.score >= 0.75;
+  // ─── UI state ──────────────────────────────────────────────────────
+  const [isReady, setIsReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [quality, setQuality] = useState<QualityResult | null>(null);
+  const [muzzlePreview, setMuzzlePreview] = useState<string | null>(null);
+  const [muzzleFile, setMuzzleFile] = useState<File | null>(null);
+  const [muzzleLocked, setMuzzleLocked] = useState(false);  // muzzle stable for 1s
+  const [isCapturing, setIsCapturing] = useState(false);     // capture animation running
+  const [isPreviewing, setIsPreviewing] = useState(false);   // showing preview screen
 
+  // ─── Refs for non-render state ─────────────────────────────────────
+  const muzzleStableStartRef = useRef<number | null>(null);
+  const lastCowBoxRef = useRef<CowDetection | null>(null);
+  const lockedMuzzleRef = useRef<MuzzleDetection | null>(null);
+  const capturingRef = useRef(false);
+  const overlayRafRef = useRef<number>(0);
+
+  const bothReady = cow.isModelReady && muzzleDet.isModelReady;
+  const anyLoading = cow.isModelLoading || muzzleDet.isModelLoading;
+  const modelError = cow.modelError || muzzleDet.modelError;
+
+  // ─── Camera management ─────────────────────────────────────────────
   const startCamera = useCallback(async (mode: 'environment' | 'user') => {
     try {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current.getTracks().forEach((tr) => tr.stop());
       }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -51,174 +66,490 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsReady(true);
-        setError(null);
+        setCameraError(null);
       }
     } catch {
-      setError(t.cameraPermissionError);
+      setCameraError(t.cameraPermissionError || 'Camera access denied');
     }
-  }, []);
+  }, [t]);
 
-  // Start/stop detection when video is ready
   useEffect(() => {
-    if (isReady && isModelReady && videoRef.current) {
-      startDetection(videoRef.current);
-      return () => stopDetection();
-    }
-  }, [isReady, isModelReady, startDetection, stopDetection]);
+    startCamera(facingMode);
+    return () => {
+      if (streamRef.current) streamRef.current.getTracks().forEach((tr) => tr.stop());
+    };
+  }, [facingMode, startCamera]);
 
-  // Draw bounding boxes on overlay canvas
+  // ─── Full reset (close & reopen / retake / flip) ───────────────────
+  const fullReset = useCallback(() => {
+    setMuzzleLocked(false);
+    setIsCapturing(false);
+    setIsPreviewing(false);
+    setMuzzlePreview(null);
+    setMuzzleFile(null);
+    setQuality(null);
+    muzzleStableStartRef.current = null;
+    lockedMuzzleRef.current = null;
+    lastCowBoxRef.current = null;
+    capturingRef.current = false;
+    resetAssistant();
+    muzzleDet.clearMuzzle();
+  }, [muzzleDet]);
+
+  // ─── Start cow detection loop when ready ───────────────────────────
   useEffect(() => {
-    const overlay = overlayCanvasRef.current;
+    if (!isReady || !bothReady || !videoRef.current) return;
+    if (isPreviewing) return;
+
     const video = videoRef.current;
-    if (!overlay || !video) return;
+    cow.startDetection(video);
+    return () => { cow.stopDetection(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, bothReady, isPreviewing]);
+
+  // ───────────────────────────────────────────────────────────────────
+  // UNIFIED LOOP: muzzle detection + quality + overlay — all simultaneous.
+  // Cow detection runs separately via useCowDetection's rAF loop.
+  // This loop reacts to cow.bestDetection every frame.
+  // ───────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isReady || !bothReady || isPreviewing) return;
+
+    const video = videoRef.current;
+    const overlay = overlayRef.current;
+    if (!video || !overlay) return;
+
+    let lastFrameTime = 0;
+    const frameInterval = 1000 / OVERLAY_FPS;
+
+    const loop = async (now: number) => {
+      overlayRafRef.current = requestAnimationFrame(loop);
+
+      if (now - lastFrameTime < frameInterval) return;
+      lastFrameTime = now;
+      if (video.readyState < 2) return;
+
+      // If capture animation is playing, don't touch detections
+      if (capturingRef.current) return;
+
+      // ── Grab latest cow detection ──
+      const cowDet = cow.bestDetection;
+
+      // ── If cow changed significantly or lost, reset muzzle tracking ──
+      if (!cowDet) {
+        muzzleDet.clearMuzzle();
+        muzzleStableStartRef.current = null;
+        if (muzzleLocked) setMuzzleLocked(false);
+        lockedMuzzleRef.current = null;
+        lastCowBoxRef.current = null;
+        setQuality(null);
+        drawOverlay(overlay, video, null, null, null, false, 0);
+        return;
+      }
+
+      // Check if the cow moved a lot (animal changed)
+      const prev = lastCowBoxRef.current;
+      if (prev) {
+        const dx = Math.abs((cowDet.x + cowDet.width / 2) - (prev.x + prev.width / 2));
+        const dy = Math.abs((cowDet.y + cowDet.height / 2) - (prev.y + prev.height / 2));
+        const shift = Math.sqrt(dx * dx + dy * dy);
+        // If cow center moved > 35% of frame width, treat as new animal
+        if (shift > video.videoWidth * 0.35) {
+          muzzleDet.clearMuzzle();
+          muzzleStableStartRef.current = null;
+          if (muzzleLocked) setMuzzleLocked(false);
+          lockedMuzzleRef.current = null;
+          resetAssistant();
+        }
+      }
+      lastCowBoxRef.current = cowDet;
+
+      // ── Run muzzle detection on this cow (async, non-blocking) ──
+      let muzzle = muzzleDet.muzzleDetection;
+      try {
+        const freshMuzzle = await muzzleDet.detectMuzzle(video, cowDet);
+        muzzle = freshMuzzle ?? null;
+      } catch {
+        // silently keep previous muzzle
+      }
+
+      // ── Muzzle stability tracking (1s continuous) ──
+      let locked = muzzleLocked;
+      if (muzzle && muzzle.confidence > 0.35) {
+        if (!muzzleStableStartRef.current) {
+          muzzleStableStartRef.current = performance.now();
+        } else if (!locked && performance.now() - muzzleStableStartRef.current >= MUZZLE_STABLE_MS) {
+          locked = true;
+          setMuzzleLocked(true);
+          lockedMuzzleRef.current = muzzle;
+        }
+        if (locked) lockedMuzzleRef.current = muzzle;
+      } else {
+        muzzleStableStartRef.current = null;
+        if (locked) {
+          setMuzzleLocked(false);
+          locked = false;
+          lockedMuzzleRef.current = null;
+        }
+      }
+
+      // ── Quality check (every frame, lightweight) ──
+      let q: QualityResult | null = null;
+      try {
+        q = analyzeFrame(video, cowDet, muzzle);
+        setQuality(q);
+      } catch {
+        // quality analysis failed, non-fatal
+      }
+
+      // ── Redraw overlay ──
+      const muzzleProgress = muzzleStableStartRef.current
+        ? Math.min((performance.now() - muzzleStableStartRef.current) / MUZZLE_STABLE_MS, 1)
+        : 0;
+      drawOverlay(overlay, video, cowDet, muzzle, q, locked, muzzleProgress);
+    };
+
+    overlayRafRef.current = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(overlayRafRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, bothReady, isPreviewing, muzzleLocked]);
+
+  // ─── Overlay drawing ───────────────────────────────────────────────
+  function drawOverlay(
+    overlay: HTMLCanvasElement,
+    video: HTMLVideoElement,
+    cowDet: CowDetection | null,
+    muzzle: MuzzleDetection | null,
+    q: QualityResult | null,
+    locked: boolean,
+    muzzleProgress: number,
+  ) {
     overlay.width = video.videoWidth || 640;
     overlay.height = video.videoHeight || 480;
     const ctx = overlay.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-    for (const det of detections) {
-      const color = det.isLivestock ? (isGoodShot ? '#22c55e' : '#facc15') : '#94a3b8';
-      ctx.strokeStyle = color;
+    if (!cowDet) return;
+
+    // ── Cow box ──
+    ctx.strokeStyle = muzzle ? (locked ? '#22c55e' : '#facc15') : '#3b82f6';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(cowDet.x, cowDet.y, cowDet.width, cowDet.height);
+
+    const label = `🐄 Cow ${Math.round(cowDet.confidence * 100)}%`;
+    ctx.font = 'bold 14px sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.fillRect(cowDet.x, cowDet.y - 24, tw + 12, 24);
+    ctx.fillStyle = '#000';
+    ctx.fillText(label, cowDet.x + 6, cowDet.y - 6);
+
+    // ── Muzzle box ──
+    if (muzzle) {
+      const baseColor = locked ? '#22c55e' : '#f59e0b';
+
+      // Dashed border with animation
+      const dashOffset = (performance.now() / 60) % 20;
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 4]);
+      ctx.lineDashOffset = dashOffset;
+      ctx.strokeRect(muzzle.x, muzzle.y, muzzle.width, muzzle.height);
+      ctx.setLineDash([]);
+
+      // Corner brackets
+      const cLen = Math.min(muzzle.width, muzzle.height) * 0.25;
+      ctx.strokeStyle = baseColor;
       ctx.lineWidth = 3;
-      ctx.strokeRect(det.x, det.y, det.width, det.height);
+      ctx.beginPath(); ctx.moveTo(muzzle.x, muzzle.y + cLen); ctx.lineTo(muzzle.x, muzzle.y); ctx.lineTo(muzzle.x + cLen, muzzle.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(muzzle.x + muzzle.width - cLen, muzzle.y); ctx.lineTo(muzzle.x + muzzle.width, muzzle.y); ctx.lineTo(muzzle.x + muzzle.width, muzzle.y + cLen); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(muzzle.x, muzzle.y + muzzle.height - cLen); ctx.lineTo(muzzle.x, muzzle.y + muzzle.height); ctx.lineTo(muzzle.x + cLen, muzzle.y + muzzle.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(muzzle.x + muzzle.width - cLen, muzzle.y + muzzle.height); ctx.lineTo(muzzle.x + muzzle.width, muzzle.y + muzzle.height); ctx.lineTo(muzzle.x + muzzle.width, muzzle.y + muzzle.height - cLen); ctx.stroke();
 
-      // Label background
-      const label = `${det.label} ${Math.round(det.confidence * 100)}%`;
-      ctx.font = 'bold 14px sans-serif';
-      const textW = ctx.measureText(label).width;
-      ctx.fillStyle = color;
-      ctx.fillRect(det.x, det.y - 22, textW + 10, 22);
-      ctx.fillStyle = '#000';
-      ctx.fillText(label, det.x + 5, det.y - 5);
-
-      // Draw muzzle region on the best livestock detection
-      if (det.isLivestock) {
-        const muzzleX = det.x + det.width * 0.25;
-        const muzzleY = det.y + det.height * 0.60;
-        const muzzleW = det.width * 0.50;
-        const muzzleH = det.height * 0.40;
-        ctx.strokeStyle = isGoodShot ? '#22c55e' : 'rgba(255,255,255,0.7)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 3]);
-        ctx.strokeRect(muzzleX, muzzleY, muzzleW, muzzleH);
-        ctx.setLineDash([]);
-        // Muzzle label
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillStyle = isGoodShot ? '#22c55e' : 'rgba(255,255,255,0.9)';
-        ctx.fillText('muzzle', muzzleX + 4, muzzleY - 4);
+      // Stability progress ring (fills from 0→1 over 1s)
+      if (!locked && muzzleProgress > 0 && muzzleProgress < 1) {
+        const cx = muzzle.x + muzzle.width / 2;
+        const cy = muzzle.y - 14;
+        const r = 8;
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * muzzleProgress); ctx.stroke();
       }
-    }
-  }, [detections]);
 
-  useEffect(() => {
-    startCamera(facingMode);
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+      // Muzzle label
+      const mLabel = locked
+        ? `✅ Muzzle locked ${Math.round(muzzle.confidence * 100)}%`
+        : `👃 Muzzle ${Math.round(muzzle.confidence * 100)}%`;
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillStyle = locked ? 'rgba(22,163,74,0.9)' : 'rgba(245,158,11,0.9)';
+      const mtw = ctx.measureText(mLabel).width;
+      ctx.fillRect(muzzle.x, muzzle.y + muzzle.height + 2, mtw + 10, 20);
+      ctx.fillStyle = '#000';
+      ctx.fillText(mLabel, muzzle.x + 5, muzzle.y + muzzle.height + 16);
+    }
+
+    // ── Quality bar ──
+    if (q) {
+      const barX = overlay.width - 120;
+      const barY = 12;
+      const barW = 108;
+      const barH = 14;
+      const pct = Math.min(q.score / 150, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
+      ctx.fillStyle = pct > 0.66 ? '#22c55e' : pct > 0.4 ? '#facc15' : '#ef4444';
+      ctx.fillRect(barX, barY, barW * pct, barH);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barW, barH);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(`Quality: ${q.score}`, barX, barY - 2);
+    }
+  }
+
+  // ─── Capture animation (slow, user-initiated) ─────────────────────
+  const doCapture = useCallback((muzzle: MuzzleDetection) => {
+    const video = videoRef.current;
+    const overlay = overlayRef.current;
+    if (!video || !overlay) return;
+
+    capturingRef.current = true;
+    setIsCapturing(true);
+
+    const startTime = performance.now();
+    const snapshotMuzzle = { ...muzzle }; // freeze the coords
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / CAPTURE_ANIM_MS, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+
+      overlay.width = video.videoWidth || 640;
+      overlay.height = video.videoHeight || 480;
+      const ctx = overlay.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+      const pad = 16;
+
+      // Darken surroundings slowly
+      ctx.fillStyle = `rgba(0,0,0,${0.55 * eased})`;
+      ctx.fillRect(0, 0, overlay.width, overlay.height);
+
+      // Clear muzzle region
+      ctx.clearRect(
+        snapshotMuzzle.x - pad * eased,
+        snapshotMuzzle.y - pad * eased,
+        snapshotMuzzle.width + pad * 2 * eased,
+        snapshotMuzzle.height + pad * 2 * eased,
+      );
+
+      // Glowing border
+      ctx.save();
+      ctx.strokeStyle = `rgba(34,197,94,${0.4 + 0.6 * eased})`;
+      ctx.lineWidth = 3 + 3 * eased;
+      ctx.shadowColor = '#22c55e';
+      ctx.shadowBlur = 18 * eased;
+      ctx.strokeRect(
+        snapshotMuzzle.x - pad * eased,
+        snapshotMuzzle.y - pad * eased,
+        snapshotMuzzle.width + pad * 2 * eased,
+        snapshotMuzzle.height + pad * 2 * eased,
+      );
+      ctx.restore();
+
+      // Scanning line
+      const scanY = snapshotMuzzle.y + snapshotMuzzle.height * ((now / 600) % 1);
+      ctx.strokeStyle = `rgba(34,197,94,${0.25 * eased})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(snapshotMuzzle.x - pad, scanY);
+      ctx.lineTo(snapshotMuzzle.x + snapshotMuzzle.width + pad, scanY);
+      ctx.stroke();
+
+      // Progress text
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillStyle = '#22c55e';
+      ctx.textAlign = 'center';
+      const pctText = Math.round(progress * 100);
+      ctx.fillText(`📸 Capturing muzzle... ${pctText}%`, overlay.width / 2, overlay.height - 30);
+      ctx.textAlign = 'start';
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        // Animation done → crop and show preview
+        capturingRef.current = false;
+        setIsCapturing(false);
+        (async () => {
+          try {
+            const preview = getMuzzleCropPreview(video, snapshotMuzzle);
+            const file = await cropMuzzleFromVideo(video, snapshotMuzzle);
+            setMuzzlePreview(preview);
+            setMuzzleFile(file);
+            setIsPreviewing(true);
+            // Stop detection while previewing
+            cow.stopDetection();
+          } catch {
+            // Crop failed — just go back to detecting, don't crash
+            fullReset();
+            if (videoRef.current && bothReady) cow.startDetection(videoRef.current);
+          }
+        })();
       }
     };
-  }, [facingMode, startCamera]);
 
-  const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
-          onCapture(file);
-        }
-      },
-      'image/jpeg',
-      0.9
-    );
-  }, [onCapture]);
+    requestAnimationFrame(animate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bothReady, fullReset]);
 
-  // Auto-capture when good shot detected
-  useEffect(() => {
-    if (isGoodShot && !autoCapturing) {
-      setAutoCapturing(true);
-      // Small delay so user can see the green box before capture
-      const timer = setTimeout(() => {
-        capturePhoto();
-        setAutoCapturing(false);
-      }, 800);
-      return () => clearTimeout(timer);
+  // ─── User actions ──────────────────────────────────────────────────
+  const handleCaptureMuzzle = useCallback(() => {
+    // Use locked muzzle if available, else current detection, else heuristic
+    const muzzle = lockedMuzzleRef.current
+      ?? muzzleDet.muzzleDetection
+      ?? (cow.bestDetection ? {
+        x: cow.bestDetection.x + cow.bestDetection.width * 0.2,
+        y: cow.bestDetection.y + cow.bestDetection.height * 0.5,
+        width: cow.bestDetection.width * 0.6,
+        height: cow.bestDetection.height * 0.5,
+        confidence: 0.4,
+      } : null);
+
+    if (muzzle) doCapture(muzzle);
+  }, [muzzleDet.muzzleDetection, cow.bestDetection, doCapture]);
+
+  const handleAcceptCapture = useCallback(() => {
+    if (muzzleFile) {
+      onCapture(muzzleFile);
     }
-  }, [isGoodShot, autoCapturing, capturePhoto]);
+  }, [muzzleFile, onCapture]);
 
-  const toggleCamera = () => {
+  const handleRetake = useCallback(() => {
+    fullReset();
+    if (videoRef.current && bothReady) cow.startDetection(videoRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bothReady, fullReset]);
+
+  const toggleCamera = useCallback(() => {
+    fullReset();
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+  }, [fullReset]);
+
+  // ─── Derived status ────────────────────────────────────────────────
+  const getStatusInfo = () => {
+    if (anyLoading) return { text: `🔄 ${t.loadingAiModel || 'Loading AI models...'}`, cls: 'status-loading' };
+    if (modelError) return { text: `⚠️ ${modelError}`, cls: 'status-error' };
+    if (isCapturing) return { text: '📸 Capturing muzzle...', cls: 'status-capturing' };
+    if (isPreviewing) return { text: '✅ Muzzle captured!', cls: 'status-good' };
+    if (!cow.bestDetection) return { text: `🔍 ${t.lookingForAnimal || 'Looking for cattle...'}`, cls: 'status-searching' };
+    if (muzzleLocked) {
+      if (quality?.approved) return { text: '✅ Muzzle locked — tap Capture!', cls: 'status-good' };
+      return { text: '🔒 Muzzle locked — tap Capture or improve quality', cls: 'status-good' };
+    }
+    if (muzzleDet.muzzleDetection) return { text: '👃 Muzzle found — hold steady to lock...', cls: 'status-detected' };
+    if (cow.bestDetection) {
+      const tip = quality?.suggestions[0] || 'Finding muzzle...';
+      return { text: `🐄 Cow detected — ${tip}`, cls: 'status-detected' };
+    }
+    return { text: '', cls: '' };
   };
+  const status = getStatusInfo();
 
-  // Status indicator text — uses muzzle quality feedback when available
-  const getStatusText = () => {
-    if (isModelLoading) return { text: t.loadingAiModel, cls: 'status-loading' };
-    if (!isModelReady) return { text: t.aiModelUnavailable, cls: 'status-error' };
-    if (!bestDetection) return { text: t.lookingForAnimal, cls: 'status-searching' };
-    if (isGoodShot) return { text: t.perfectMuzzleShot, cls: 'status-good' };
-    const feedbackText = muzzleQuality ? muzzleQuality.feedback : `🐄 ${bestDetection.label} (${Math.round(bestDetection.confidence * 100)}%)`;
-    return { text: feedbackText, cls: 'status-detected' };
-  };
+  // ─── Which pipeline dots are active? ───────────────────────────────
+  const hasCow = !!cow.bestDetection;
+  const hasMuzzle = !!muzzleDet.muzzleDetection || muzzleLocked;
+  const hasQuality = hasMuzzle && (quality?.score ?? 0) > 0;
 
-  const status = getStatusText();
-
+  // ─── Render ────────────────────────────────────────────────────────
   return (
     <div className="camera-overlay">
       <div className="camera-container">
         <div className="camera-header">
-          <h3>{t.captureAnimalPhoto}</h3>
-          <button className="camera-close-btn" onClick={onClose} aria-label="Close camera">
-            ✕
-          </button>
+          <h3>{isPreviewing ? '🔬 Muzzle Preview' : (t.captureAnimalPhoto || 'Capture Animal Photo')}</h3>
+          <button className="camera-close-btn" onClick={onClose} aria-label="Close camera">✕</button>
         </div>
 
-        {error ? (
+        {cameraError ? (
           <div className="camera-error">
-            <p>{error}</p>
+            <p>{cameraError}</p>
             <button className="btn btn-primary" onClick={() => startCamera(facingMode)}>
-              {t.retryCamera}
+              {t.retryCamera || 'Retry'}
             </button>
+          </div>
+        ) : isPreviewing && muzzlePreview ? (
+          <div className="muzzle-preview-container">
+            <div className="muzzle-preview-image-wrap">
+              <img src={muzzlePreview} alt="Muzzle capture" className="muzzle-preview-image" />
+              <div className="muzzle-preview-badge">👃 Muzzle ROI</div>
+            </div>
+            <p className="muzzle-preview-info">
+              This cropped muzzle image will be used for unique identification via embeddings.
+            </p>
+            <div className="muzzle-preview-actions">
+              <button className="btn btn-primary muzzle-accept-btn" onClick={handleAcceptCapture}>
+                ✅ Use This Capture
+              </button>
+              <button className="btn btn-outline muzzle-retake-btn" onClick={handleRetake}>
+                🔄 Retake
+              </button>
+            </div>
           </div>
         ) : (
           <>
-            <div className="camera-viewfinder">
+            <div className={`camera-viewfinder ${isCapturing ? 'viewfinder-capturing' : ''}`}>
               <video ref={videoRef} autoPlay playsInline muted className="camera-video" />
-              {/* Detection overlay canvas */}
-              <canvas ref={overlayCanvasRef} className="camera-overlay-canvas" />
-              {/* AI status badge */}
+              <canvas ref={overlayRef} className="camera-overlay-canvas" />
+
+              {/* Pipeline stage indicators */}
+              <div className="pipeline-stages">
+                <div className={`pipeline-dot ${hasCow ? 'active' : ''}`}>
+                  <span>🐄</span><small>Cow</small>
+                </div>
+                <div className={`pipeline-line ${hasCow ? 'active' : ''}`} />
+                <div className={`pipeline-dot ${hasMuzzle ? 'active' : ''}`}>
+                  <span>👃</span><small>Muzzle</small>
+                </div>
+                <div className={`pipeline-line ${hasMuzzle ? 'active' : ''}`} />
+                <div className={`pipeline-dot ${hasQuality ? 'active' : ''}`}>
+                  <span>✅</span><small>Quality</small>
+                </div>
+              </div>
+
               <div className={`camera-ai-status ${status.cls}`}>{status.text}</div>
             </div>
 
-            {/* Hidden canvases */}
-            <canvas ref={canvasRef} className="camera-canvas" />
-
             <div className="camera-controls">
-              <button
-                className="btn btn-outline camera-flip-btn"
-                onClick={toggleCamera}
-                aria-label="Flip camera"
-              >
-                🔄 {t.flipCamera}
+              <button className="btn btn-outline camera-flip-btn" onClick={toggleCamera} aria-label="Flip camera">
+                🔄 {t.flipCamera || 'Flip'}
               </button>
               <button
                 className="btn btn-secondary camera-capture-btn"
-                onClick={capturePhoto}
-                disabled={!isReady}
-                aria-label="Capture photo"
+                onClick={handleCaptureMuzzle}
+                disabled={!isReady || anyLoading || isCapturing || !cow.bestDetection}
+                aria-label="Capture muzzle"
               >
-                📸 {t.captureBtn}
+                {muzzleLocked ? '📸 Capture Muzzle' : cow.bestDetection ? '📸 Capture' : (t.captureBtn || 'Capture')}
               </button>
             </div>
+
+            {quality && quality.suggestions.length > 0 && hasCow && !isCapturing && (
+              <div className="quality-suggestions">
+                {quality.suggestions.slice(0, 2).map((s, i) => (
+                  <div key={i} className="quality-suggestion-item">💡 {s}</div>
+                ))}
+              </div>
+            )}
+
             <p className="camera-hint">
-              {t.cameraAutoCapHint}
+              {muzzleLocked
+                ? 'Muzzle is locked! Tap "Capture Muzzle" when ready.'
+                : (t.cameraAutoCapHint || 'Hold steady once muzzle is found. Captures when you approve!')}
             </p>
           </>
         )}
