@@ -194,6 +194,9 @@ export interface Translations {
   saveAnimalDetails: string;
   enrollmentFailed: string;
   failedToSaveAnimal: string;
+  enrollImageError: string;
+  serviceUnavailable: string;
+  networkError: string;
 
   // Profile
   personalDetails: string;
@@ -511,6 +514,9 @@ const en: Translations = {
   saveAnimalDetails: 'Save Animal Details',
   enrollmentFailed: 'Enrollment failed. Please try again.',
   failedToSaveAnimal: "Failed to save animal details. You can update later from the dashboard.",
+  enrollImageError: 'Image could not be processed. Please use a clearer, higher-resolution photo (at least 224×224 pixels).',
+  serviceUnavailable: 'Service is temporarily unavailable. Please try again later.',
+  networkError: 'Network error. Please check your connection and try again.',
 
   personalDetails: 'Personal Details',
   memberSince: 'Member Since',
@@ -824,6 +830,9 @@ const hi: Translations = {
   saveAnimalDetails: 'पशु विवरण सहेजें',
   enrollmentFailed: 'नामांकन विफल। कृपया पुनः प्रयास करें।',
   failedToSaveAnimal: 'पशु विवरण सहेजने में विफल। आप बाद में डैशबोर्ड से अपडेट कर सकते हैं।',
+  enrollImageError: 'छवि प्रोसेस नहीं हो सकी। कृपया स्पष्ट, उच्च-रिज़ॉल्यूशन फ़ोटो (कम से कम 224×224 पिक्सेल) उपयोग करें।',
+  serviceUnavailable: 'सेवा अस्थायी रूप से अनुपलब्ध है। कृपया बाद में पुनः प्रयास करें।',
+  networkError: 'नेटवर्क त्रुटि। कृपया अपना कनेक्शन जांचें और पुनः प्रयास करें।',
 
   personalDetails: 'व्यक्तिगत विवरण',
   memberSince: 'सदस्य बने',
@@ -1133,6 +1142,9 @@ const te: Translations = {
   saveAnimalDetails: 'పశువు వివరాలు సేవ్ చేయండి',
   enrollmentFailed: 'నమోదు విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
   failedToSaveAnimal: 'పశువు వివరాలు సేవ్ చేయడం విఫలమైంది. డ్యాష్‌బోర్డ్ నుండి తర్వాత అప్‌డేట్ చేయవచ్చు.',
+  enrollImageError: 'చిత్రాన్ని ప్రాసెస్ చేయడం సాధ్యం కాలేదు. దయచేసి స్పష్టమైన, అధిక-రిజల్యూషన్ ఫోటో (కనీసం 224×224 పిక్సెల్‌లు) ఉపయోగించండి.',
+  serviceUnavailable: 'సేవ తాత్కాలికంగా అందుబాటులో లేదు. దయచేసి తర్వాత మళ్ళీ ప్రయత్నించండి.',
+  networkError: 'నెట్‌వర్క్ లోపం. దయచేసి మీ కనెక్షన్‌ని తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి.',
 
   personalDetails: 'వ్యక్తిగత వివరాలు',
   memberSince: 'సభ్యుడు అప్పటి నుండి',
@@ -1442,6 +1454,9 @@ const ta: Translations = {
   saveAnimalDetails: 'விலங்கு விவரங்களைச் சேமி',
   enrollmentFailed: 'பதிவு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',
   failedToSaveAnimal: 'விலங்கு விவரங்களைச் சேமிக்க முடியவில்லை. டாஷ்போர்டிலிருந்து பின்னர் புதுப்பிக்கலாம்.',
+  enrollImageError: 'படத்தை செயலாக்க முடியவில்லை. தெளிவான, உயர்-தெளிவுத்திறன் புகைப்படத்தைப் (குறைந்தபட்சம் 224×224 பிக்சல்கள்) பயன்படுத்தவும்.',
+  serviceUnavailable: 'சேவை தற்காலிகமாக கிடைக்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.',
+  networkError: 'நெட்வொர்க் பிழை. உங்கள் இணைப்பை சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
 
   personalDetails: 'தனிப்பட்ட விவரங்கள்',
   memberSince: 'உறுப்பினர் ஆன நாள்',

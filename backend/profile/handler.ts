@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { createLogger, buildResponse, buildErrorResponse } from '../shared/utils';
 
 const logger = createLogger('profile');
@@ -45,54 +45,96 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
       const updates = JSON.parse(event.body) as Record<string, unknown>;
 
+      // Determine the owner_id — use Cognito claim or derive from userId
+      const effectiveOwnerId = ownerId || `OWN-${userId.substring(0, 8)}`;
+
+      // Check if owner record exists
+      const existingOwner = await ddbClient.send(new GetCommand({
+        TableName: OWNERS_TABLE,
+        Key: { owner_id: effectiveOwnerId },
+      }));
+
       // Allowlisted fields that can be updated
       const allowed = ['name', 'aadhaar_last4', 'village', 'district', 'state', 'pincode'];
-      const ownerItem: Record<string, unknown> = {
-        owner_id: ownerId || userId,
-        user_id: userId,
-        phone_number: phoneNumber,
-        role: role || 'farmer',
-        updated_at: new Date().toISOString(),
-      };
+
+      if (!existingOwner.Item) {
+        // Create new owner record if it doesn't exist
+        const ownerItem: Record<string, unknown> = {
+          owner_id: effectiveOwnerId,
+          user_id: userId,
+          phone_number: phoneNumber,
+          name: name || '',
+          role: role || 'farmer',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        for (const key of allowed) {
+          if (updates[key] !== undefined) {
+            ownerItem[key] = updates[key];
+          }
+        }
+        await ddbClient.send(new PutCommand({
+          TableName: OWNERS_TABLE,
+          Item: ownerItem,
+        }));
+        logger.info('Owner record created via profile update', { owner_id: effectiveOwnerId });
+        return buildResponse(200, { message: 'Profile created', owner: ownerItem }, ALLOWED_ORIGIN);
+      }
+
+      // Build update expression dynamically to only update provided fields
+      const expressionParts: string[] = ['#updated_at = :updated_at'];
+      const exprNames: Record<string, string> = { '#updated_at': 'updated_at' };
+      const exprValues: Record<string, unknown> = { ':updated_at': new Date().toISOString() };
 
       for (const key of allowed) {
         if (updates[key] !== undefined) {
-          ownerItem[key] = updates[key];
+          const placeholder = `#${key}`;
+          const valuePlaceholder = `:${key}`;
+          expressionParts.push(`${placeholder} = ${valuePlaceholder}`);
+          exprNames[placeholder] = key;
+          exprValues[valuePlaceholder] = updates[key];
         }
       }
 
-      await ddbClient.send(new PutCommand({
+      await ddbClient.send(new UpdateCommand({
         TableName: OWNERS_TABLE,
-        Item: ownerItem,
+        Key: { owner_id: effectiveOwnerId },
+        UpdateExpression: `SET ${expressionParts.join(', ')}`,
+        ExpressionAttributeNames: exprNames,
+        ExpressionAttributeValues: exprValues,
+        ReturnValues: 'ALL_NEW',
       }));
 
-      logger.info('Profile updated', { owner_id: ownerItem.owner_id });
-      return buildResponse(200, { message: 'Profile updated', owner: ownerItem }, ALLOWED_ORIGIN);
+      logger.info('Profile updated', { owner_id: effectiveOwnerId });
+      return buildResponse(200, { message: 'Profile updated', owner_id: effectiveOwnerId }, ALLOWED_ORIGIN);
     }
 
     // ─── GET /me → fetch profile ─────────────────────────
     // Build profile from Cognito claims
+    const effectiveOwnerId = ownerId || `OWN-${userId.substring(0, 8)}`;
     const profile: Record<string, unknown> = {
       user_id: userId,
       phone_number: phoneNumber,
       name,
       role: role || 'farmer',
-      owner_id: ownerId || null,
+      owner_id: effectiveOwnerId,
     };
 
-    // If owner_id exists, fetch owner details from DynamoDB
-    if (ownerId) {
-      try {
-        const ownerResult = await ddbClient.send(new GetCommand({
-          TableName: OWNERS_TABLE,
-          Key: { owner_id: ownerId },
-        }));
-        if (ownerResult.Item) {
-          profile.owner = ownerResult.Item;
-        }
-      } catch (err) {
-        logger.warn('Failed to fetch owner record', err);
+    // Fetch owner details from DynamoDB
+    try {
+      const ownerResult = await ddbClient.send(new GetCommand({
+        TableName: OWNERS_TABLE,
+        Key: { owner_id: effectiveOwnerId },
+      }));
+      if (ownerResult.Item) {
+        profile.owner = ownerResult.Item;
+        profile.created_at = ownerResult.Item.created_at;
+        // Use DynamoDB name/role if present (more up-to-date)
+        if (ownerResult.Item.name) profile.name = ownerResult.Item.name;
+        if (ownerResult.Item.aadhaar_last4) profile.aadhaar_last4 = ownerResult.Item.aadhaar_last4;
       }
+    } catch (err) {
+      logger.warn('Failed to fetch owner record', err);
     }
 
     // If user has a role mapping, fetch it

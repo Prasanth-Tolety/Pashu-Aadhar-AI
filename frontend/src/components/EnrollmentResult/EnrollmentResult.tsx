@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { EnrollmentResponse } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import './EnrollmentResult.css';
@@ -9,6 +10,7 @@ interface EnrollmentResultProps {
 
 export default function EnrollmentResult({ result, onEnrollAnother }: EnrollmentResultProps) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const isNew = result.status === 'NEW';
   const similarityPercent = Math.round(result.similarity * 100);
 
@@ -53,6 +55,14 @@ export default function EnrollmentResult({ result, onEnrollAnother }: Enrollment
 
       <button className="btn btn-primary btn-full" onClick={onEnrollAnother}>
         {t.enrollAnother}
+      </button>
+
+      <button
+        className="btn btn-outline btn-full"
+        style={{ marginTop: '0.75rem' }}
+        onClick={() => navigate('/dashboard')}
+      >
+        📊 {t.goToDashboard}
       </button>
     </div>
   );

@@ -128,8 +128,19 @@ export default function Enrollment() {
         navigate('/result', { state: { result } });
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : t.enrollmentFailed;
+      let message = t.enrollmentFailed;
+      if (err instanceof Error) {
+        const errMsg = err.message.toLowerCase();
+        if (errMsg.includes('400') || errMsg.includes('invalid')) {
+          message = t.enrollImageError || 'Image could not be processed. Please use a clearer, higher-resolution photo (at least 224×224 pixels).';
+        } else if (errMsg.includes('503') || errMsg.includes('unavailable')) {
+          message = t.serviceUnavailable || 'Service is temporarily unavailable. Please try again later.';
+        } else if (errMsg.includes('network') || errMsg.includes('timeout')) {
+          message = t.networkError || 'Network error. Please check your connection and try again.';
+        } else {
+          message = err.message;
+        }
+      }
       setState((prev) => ({ ...prev, status: 'error', error: message }));
     }
   };

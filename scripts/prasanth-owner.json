@@ -1,0 +1,8 @@
+{
+  "owner_id": {"S": "OWN-d4486428"},
+  "user_id": {"S": "d4486428-00a1-70ae-62de-85e58b10f4e0"},
+  "phone_number": {"S": "+917032038240"},
+  "name": {"S": "Prasanth"},
+  "role": {"S": "administrator"},
+  "created_at": {"S": "2026-03-06T00:00:00Z"}
+}
