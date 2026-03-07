@@ -96,7 +96,7 @@ export async function resolveAccessRequest(
   action: 'approve' | 'deny',
   token: string
 ): Promise<void> {
-  await apiClient.post(`/access-requests/${requestId}/${action}`, {}, {
+  await apiClient.post(`/access-requests/${requestId}/resolve`, { action }, {
     headers: authHeaders(token),
   });
 }

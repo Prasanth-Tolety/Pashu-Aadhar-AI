@@ -30,6 +30,7 @@ const SAGEMAKER_ENDPOINT = process.env.SAGEMAKER_ENDPOINT_NAME!;
 const OPENSEARCH_INDEX = process.env.OPENSEARCH_INDEX || 'livestock-embeddings';
 const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || String(DEFAULT_SIMILARITY_THRESHOLD));
 const ANIMALS_TABLE = 'animals';
+const EMBEDDINGS_TABLE = 'embeddings';
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
 // Ensure the OpenSearch endpoint has the https:// protocol prefix
@@ -154,9 +155,23 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     return buildErrorResponse(400, 'MISSING_BODY', 'Request body is required', ALLOWED_ORIGIN);
   }
 
-  let body: { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number; photo_key?: string };
+  let body: {
+    imageKey?: unknown;
+    owner_id?: string;
+    latitude?: number;
+    longitude?: number;
+    photo_key?: string;
+    region_code?: string;
+  };
   try {
-    body = JSON.parse(event.body) as { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number; photo_key?: string };
+    body = JSON.parse(event.body) as {
+      imageKey?: unknown;
+      owner_id?: string;
+      latitude?: number;
+      longitude?: number;
+      photo_key?: string;
+      region_code?: string;
+    };
   } catch {
     return buildErrorResponse(400, 'INVALID_JSON', 'Invalid JSON in request body', ALLOWED_ORIGIN);
   }
@@ -207,25 +222,60 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 
     const newLivestockId = generateLivestockId();
-    logger.info('Enrolling new animal', { livestock_id: newLivestockId });
+    const embeddingId = `EMB-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const modelVersion = 'clip-vit-base-v1';
+    logger.info('Enrolling new animal', { livestock_id: newLivestockId, embedding_id: embeddingId });
 
     await storeNewEmbedding(newLivestockId, embedding, imageKey);
 
-    // Also save to DynamoDB animals table
+    // ── Store embedding reference in DynamoDB embeddings table (per schema §3.2) ──
+    try {
+      await ddbClient.send(new PutCommand({
+        TableName: EMBEDDINGS_TABLE,
+        Item: {
+          embedding_id: embeddingId,
+          livestock_id: newLivestockId,
+          model_version: modelVersion,
+          created_at: new Date().toISOString(),
+        },
+      }));
+      logger.info('Embedding record saved to DynamoDB', { embedding_id: embeddingId });
+    } catch (embErr) {
+      logger.warn('Failed to save embedding to DynamoDB (non-fatal)', embErr);
+    }
+
+    // ── Save animal to DynamoDB (per schema §3.1) ──
     const enrolledAt = new Date().toISOString();
     const animalItem: Record<string, unknown> = {
       livestock_id: newLivestockId,
       image_key: imageKey,
       muzzle_key: imageKey,        // muzzle ROI used for embedding
+      embedding_id: embeddingId,
+      embedding_version: modelVersion,
+      enrollment_confidence_score: similarity || 0,
+      biometric_type: 'muzzle_print',
       enrolled_at: enrolledAt,
+      enrollment_timestamp: enrolledAt,
       species: 'cattle',
       status: 'active',
+      created_at: enrolledAt,
+      updated_at: enrolledAt,
     };
     // Attach optional fields from request body
-    if (body.owner_id) animalItem.owner_id = body.owner_id;
-    if (typeof body.latitude === 'number') animalItem.latitude = body.latitude;
-    if (typeof body.longitude === 'number') animalItem.longitude = body.longitude;
-    if (body.photo_key) animalItem.photo_key = body.photo_key;  // cow profile photo
+    if (body.owner_id) {
+      animalItem.owner_id = body.owner_id;
+      animalItem.registered_by_user_id = body.owner_id;
+    }
+    if (typeof body.latitude === 'number') {
+      animalItem.latitude = body.latitude;
+      animalItem.enrollment_latitude = body.latitude;
+    }
+    if (typeof body.longitude === 'number') {
+      animalItem.longitude = body.longitude;
+      animalItem.enrollment_longitude = body.longitude;
+    }
+    if (body.photo_key) animalItem.photo_key = body.photo_key;
+    if (body.region_code) animalItem.region_code = body.region_code;
 
     try {
       await ddbClient.send(new PutCommand({

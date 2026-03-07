@@ -236,33 +236,104 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
     if (!ctx) return;
     ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-    if (!cowDet) return;
+    const now = performance.now();
 
-    // ── Cow box ──
-    ctx.strokeStyle = muzzle ? (locked ? '#22c55e' : '#facc15') : '#3b82f6';
+    // ── Guide ovals (always show when no cow / no muzzle) ──
+    if (!cowDet) {
+      // Large dashed green oval in center — "place cow here"
+      const cx = overlay.width / 2;
+      const cy = overlay.height / 2;
+      const rx = overlay.width * 0.28;
+      const ry = overlay.height * 0.35;
+      const dashOffset = (now / 80) % 30;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(34,197,94,0.45)';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([12, 6]);
+      ctx.lineDashOffset = dashOffset;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Label
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillStyle = 'rgba(34,197,94,0.7)';
+      ctx.textAlign = 'center';
+      ctx.fillText('🐄 Place cattle here', cx, cy + ry + 22);
+      ctx.textAlign = 'start';
+      ctx.restore();
+      return;
+    }
+
+    // ── Cow bounding box ──
+    const cowColor = muzzle ? (locked ? '#22c55e' : '#facc15') : '#3b82f6';
+    ctx.strokeStyle = cowColor;
     ctx.lineWidth = 3;
     ctx.strokeRect(cowDet.x, cowDet.y, cowDet.width, cowDet.height);
 
     const label = `🐄 Cow ${Math.round(cowDet.confidence * 100)}%`;
     ctx.font = 'bold 14px sans-serif';
     const tw = ctx.measureText(label).width;
-    ctx.fillStyle = ctx.strokeStyle;
+    ctx.fillStyle = cowColor;
     ctx.fillRect(cowDet.x, cowDet.y - 24, tw + 12, 24);
     ctx.fillStyle = '#000';
     ctx.fillText(label, cowDet.x + 6, cowDet.y - 6);
 
-    // ── Muzzle box ──
+    // ── Muzzle guide oval (show when cow found but muzzle not yet detected) ──
+    if (!muzzle) {
+      // Show a green dashed oval in the lower half of the cow box (where muzzle should be)
+      const guideCx = cowDet.x + cowDet.width / 2;
+      const guideCy = cowDet.y + cowDet.height * 0.65;
+      const guideRx = cowDet.width * 0.22;
+      const guideRy = cowDet.height * 0.18;
+      const dashOffset2 = (now / 80) % 30;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(34,197,94,0.5)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 5]);
+      ctx.lineDashOffset = dashOffset2;
+      ctx.beginPath();
+      ctx.ellipse(guideCx, guideCy, Math.max(guideRx, 15), Math.max(guideRy, 12), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = 'rgba(34,197,94,0.7)';
+      ctx.textAlign = 'center';
+      ctx.fillText('👃 Muzzle here', guideCx, guideCy + Math.max(guideRy, 12) + 14);
+      ctx.textAlign = 'start';
+      ctx.restore();
+    }
+
+    // ── Muzzle bounding box ──
     if (muzzle) {
       const baseColor = locked ? '#22c55e' : '#f59e0b';
 
       // Dashed border with animation
-      const dashOffset = (performance.now() / 60) % 20;
+      const dashOffset3 = (now / 60) % 20;
       ctx.strokeStyle = baseColor;
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 4]);
-      ctx.lineDashOffset = dashOffset;
+      ctx.lineDashOffset = dashOffset3;
       ctx.strokeRect(muzzle.x, muzzle.y, muzzle.width, muzzle.height);
       ctx.setLineDash([]);
+
+      // Green oval around the muzzle
+      const mCx = muzzle.x + muzzle.width / 2;
+      const mCy = muzzle.y + muzzle.height / 2;
+      const mRx = muzzle.width * 0.55;
+      const mRy = muzzle.height * 0.55;
+      ctx.save();
+      ctx.strokeStyle = locked ? 'rgba(34,197,94,0.8)' : 'rgba(245,158,11,0.6)';
+      ctx.lineWidth = locked ? 3 : 2;
+      ctx.beginPath();
+      ctx.ellipse(mCx, mCy, mRx, mRy, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      if (locked) {
+        // Subtle green glow fill when locked
+        ctx.fillStyle = 'rgba(34,197,94,0.08)';
+        ctx.fill();
+      }
+      ctx.restore();
 
       // Corner brackets
       const cLen = Math.min(muzzle.width, muzzle.height) * 0.25;

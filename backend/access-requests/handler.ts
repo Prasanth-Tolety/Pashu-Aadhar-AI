@@ -28,8 +28,12 @@ function generateRequestId(): string {
 function extractClaims(event: APIGatewayProxyEvent) {
   const claims = event.requestContext?.authorizer?.claims;
   if (!claims) return null;
+  const userId = claims.sub as string;
+  // owner_id from Cognito (set by PostConfirmation trigger), or derive from sub
+  const ownerId = (claims['custom:owner_id'] as string) || `OWN-${userId.substring(0, 8)}`;
   return {
-    userId: claims.sub as string,
+    userId,
+    ownerId,
     role: (claims['custom:role'] as string) || 'farmer',
     name: claims.name as string,
   };
@@ -47,7 +51,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     return buildErrorResponse(401, 'UNAUTHORIZED', 'No auth claims found', ALLOWED_ORIGIN);
   }
 
-  const { userId, role, name } = claimsData;
+  const { userId, ownerId: callerOwnerId, role, name } = claimsData;
   const path = event.path;
 
   try {
@@ -101,11 +105,12 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
     // ─── GET /access-requests/incoming → requests TO the current user (owner) ───
     if (event.httpMethod === 'GET' && path.includes('/incoming')) {
+      logger.info('Fetching incoming requests for owner', { callerOwnerId });
       const result = await ddbClient.send(new QueryCommand({
         TableName: ACCESS_REQUESTS_TABLE,
         IndexName: 'owner-index',
         KeyConditionExpression: 'owner_id = :oid',
-        ExpressionAttributeValues: { ':oid': userId },
+        ExpressionAttributeValues: { ':oid': callerOwnerId },
         ScanIndexForward: false,
       }));
 
@@ -175,7 +180,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       if (!existing.Item) {
         return buildErrorResponse(404, 'NOT_FOUND', 'Access request not found', ALLOWED_ORIGIN);
       }
-      if (existing.Item.owner_id !== userId) {
+      if (existing.Item.owner_id !== callerOwnerId) {
         return buildErrorResponse(403, 'FORBIDDEN', 'Only the animal owner can resolve this request', ALLOWED_ORIGIN);
       }
 

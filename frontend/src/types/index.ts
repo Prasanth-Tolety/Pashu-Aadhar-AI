@@ -93,6 +93,10 @@ export interface EnrollmentState {
 // ─── Animal ──────────────────────────────────────────────────────────
 export interface Animal {
   livestock_id: string;
+  embedding_id?: string;
+  embedding_version?: string;
+  enrollment_confidence_score?: number;
+  biometric_type?: string;
   species?: string;
   breed?: string;
   gender?: string;
@@ -103,17 +107,24 @@ export interface Animal {
   village?: string;
   district?: string;
   state?: string;
+  region_code?: string;
   owner_id?: string;
   owner_name?: string;
+  registered_by_user_id?: string;
   enrolled_at?: string;
+  enrollment_timestamp?: string;
   image_key?: string;
   photo_key?: string;       // cow profile photo (full frame / cow crop)
   muzzle_key?: string;      // muzzle ROI (for embeddings, not editable)
   photo_url?: string;       // presigned URL for photo_key (from backend)
   muzzle_url?: string;      // presigned URL for muzzle_key (from backend)
+  enrollment_latitude?: number;
+  enrollment_longitude?: number;
   latitude?: number;
   longitude?: number;
   status?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // ─── Access Request ──────────────────────────────────────────────────
