@@ -10,6 +10,7 @@
 | Insurance Agent| +919876543212    | Insurer@123    | 94d84468-...                         |
 | Government     | +919876543213    | Govt@12345     | 948844e8-...                         |
 | Administrator  | +919876543214    | Admin@1234     | 74186458-...                         |
+| Enrollment Agent| +919876543215   | Agent@1234     | a4080488-...                         |
 
 ### Notes
 - All users were created via `scripts/create-default-users.sh` using the Cognito admin API.

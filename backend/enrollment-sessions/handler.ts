@@ -164,11 +164,15 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
         animal_count: body.animal_count || 1,
         preferred_date: body.preferred_date || null,
         status: agent ? 'assigned' : 'pending',
-        assigned_agent_id: agent?.agentId || null,
-        assigned_agent_name: agent?.agentName || null,
         created_at: now,
         updated_at: now,
       };
+
+      // Only set agent fields if an agent was assigned (GSI keys can't be NULL)
+      if (agent) {
+        item.assigned_agent_id = agent.agentId;
+        item.assigned_agent_name = agent.agentName;
+      }
 
       await ddbClient.send(new PutCommand({
         TableName: ENROLLMENT_REQUESTS_TABLE,
