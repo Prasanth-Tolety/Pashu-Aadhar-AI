@@ -203,15 +203,28 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
         }));
         items = (result.Items || []) as Record<string, unknown>[];
       } else if (role === 'enrollment_agent') {
-        // Agent sees requests assigned to them
-        const result = await ddbClient.send(new QueryCommand({
+        // Agent sees requests assigned to them + unassigned pending requests
+        const assignedResult = await ddbClient.send(new QueryCommand({
           TableName: ENROLLMENT_REQUESTS_TABLE,
           IndexName: 'agent-index',
           KeyConditionExpression: 'assigned_agent_id = :aid',
           ExpressionAttributeValues: { ':aid': userId },
           ScanIndexForward: false,
         }));
-        items = (result.Items || []) as Record<string, unknown>[];
+        const assigned = (assignedResult.Items || []) as Record<string, unknown>[];
+
+        // Also fetch pending unassigned requests (agent can accept these)
+        const pendingResult = await ddbClient.send(new ScanCommand({
+          TableName: ENROLLMENT_REQUESTS_TABLE,
+          FilterExpression: '#s = :pending AND attribute_not_exists(assigned_agent_id)',
+          ExpressionAttributeNames: { '#s': 'status' },
+          ExpressionAttributeValues: { ':pending': 'pending' },
+        }));
+        const pending = (pendingResult.Items || []) as Record<string, unknown>[];
+
+        items = [...assigned, ...pending];
+        // Sort by created_at descending
+        items.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
       } else if (role === 'admin' || role === 'government') {
         // Admin/gov sees all
         const result = await ddbClient.send(new ScanCommand({
@@ -236,6 +249,57 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       }
 
       return buildResponse(200, { request: result.Item }, ALLOWED_ORIGIN);
+    }
+
+    // ─── POST /enrollment-requests/{id}/accept → agent accepts & schedules a visit ───
+    if (event.httpMethod === 'POST' && event.pathParameters?.id && path.includes('/accept')) {
+      if (role !== 'enrollment_agent' && role !== 'admin') {
+        return buildErrorResponse(403, 'FORBIDDEN', 'Only agents can accept requests', ALLOWED_ORIGIN);
+      }
+
+      const requestId = event.pathParameters.id;
+      const body = event.body ? JSON.parse(event.body) as { scheduled_date?: string; notes?: string } : {};
+
+      // Verify the request exists
+      const reqResult = await ddbClient.send(new GetCommand({
+        TableName: ENROLLMENT_REQUESTS_TABLE,
+        Key: { request_id: requestId },
+      }));
+
+      if (!reqResult.Item) {
+        return buildErrorResponse(404, 'NOT_FOUND', 'Enrollment request not found', ALLOWED_ORIGIN);
+      }
+
+      // Check the request is still pending or already assigned to this agent
+      const currentStatus = reqResult.Item.status as string;
+      const currentAgent = reqResult.Item.assigned_agent_id as string | undefined;
+      if (currentStatus !== 'pending' && currentAgent !== userId) {
+        return buildErrorResponse(409, 'CONFLICT', 'This request is already assigned to another agent', ALLOWED_ORIGIN);
+      }
+
+      const now = new Date().toISOString();
+
+      await ddbClient.send(new UpdateCommand({
+        TableName: ENROLLMENT_REQUESTS_TABLE,
+        Key: { request_id: requestId },
+        UpdateExpression: 'SET #s = :s, assigned_agent_id = :aid, assigned_agent_name = :aname, scheduled_date = :sd, agent_notes = :notes, updated_at = :u',
+        ExpressionAttributeNames: { '#s': 'status' },
+        ExpressionAttributeValues: {
+          ':s': 'assigned',
+          ':aid': userId,
+          ':aname': name,
+          ':sd': body.scheduled_date || null,
+          ':notes': body.notes || null,
+          ':u': now,
+        },
+      }));
+
+      logger.info('Agent accepted enrollment request', { request_id: requestId, agent: userId, scheduled: body.scheduled_date });
+      return buildResponse(200, {
+        message: 'Request accepted. Visit scheduled.',
+        request_id: requestId,
+        scheduled_date: body.scheduled_date || null,
+      }, ALLOWED_ORIGIN);
     }
 
     // ═══════════════════════════════════════════════════════════════════

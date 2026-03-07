@@ -175,6 +175,17 @@ export async function getEnrollmentRequest(requestId: string, token: string): Pr
   return res.data.request;
 }
 
+export async function acceptEnrollmentRequest(
+  requestId: string,
+  data: { scheduled_date?: string; notes?: string },
+  token: string
+): Promise<{ message: string; request_id: string; scheduled_date: string | null }> {
+  const res = await apiClient.post(`/enrollment-requests/${requestId}/accept`, data, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
 // ─── Enrollment Sessions (Agent-driven) ──────────────────────────────
 export async function startEnrollmentSession(
   data: {

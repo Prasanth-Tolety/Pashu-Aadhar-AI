@@ -44,6 +44,7 @@ export default function Dashboard() {
   const role = user?.role as UserRole;
   const roleConfig = role ? ROLE_CONFIG[role] : null;
   const isFarmer = role === 'farmer';
+  const isAgent = role === 'enrollment_agent';
   const isVetOrInsurer = role === 'veterinarian' || role === 'insurer';
   const isGovOrAdmin = role === 'government' || role === 'admin';
   const rolePrefix = roleConfig?.prefix || 'USR';
@@ -192,6 +193,12 @@ export default function Dashboard() {
                 <Link to="/enroll" className="action-card enroll-action">
                   <span className="action-icon">📸</span>
                   <span className="action-label">{t.enrollNewAnimal}</span>
+                </Link>
+              )}
+              {isAgent && (
+                <Link to="/enroll" className="action-card enroll-action">
+                  <span className="action-icon">📋</span>
+                  <span className="action-label">Enrollment Assignments</span>
                 </Link>
               )}
               <Link to="/profile" className="action-card profile-action">

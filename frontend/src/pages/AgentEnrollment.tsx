@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 // useLanguage reserved for i18n translations
 import {
   getEnrollmentRequests,
+  acceptEnrollmentRequest,
   startEnrollmentSession,
   getEnrollmentSession,
   completeSessionStep,
@@ -70,6 +71,12 @@ export default function AgentEnrollment() {
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ livestock_id: string; status: string } | null>(null);
 
+  // ─── Accept / schedule state ────────────────────────────────────
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [agentNotes, setAgentNotes] = useState('');
+  const [acceptLoading, setAcceptLoading] = useState(false);
+
   // ─── Location tracking ──────────────────────────────────────────
   const locationTrailRef = useRef<Array<{ latitude: number; longitude: number; accuracy: number; timestamp: string }>>([]);
   const locationWatchRef = useRef<number | null>(null);
@@ -128,10 +135,10 @@ export default function AgentEnrollment() {
           setLoading(false);
         });
     } else {
-      // Load assigned requests
+      // Load all requests (assigned + pending available)
       getEnrollmentRequests(idToken)
         .then((reqs) => {
-          setAssignments(reqs.filter((r) => r.status === 'assigned' || r.status === 'in_progress'));
+          setAssignments(reqs);
           setLoading(false);
         })
         .catch(() => {
@@ -163,6 +170,31 @@ export default function AgentEnrollment() {
       setLoading(false);
     }
   }, [idToken, navigate]);
+
+  // ─── Accept a pending request ───────────────────────────────────
+  const handleAcceptRequest = useCallback(async (requestId: string) => {
+    if (!idToken) return;
+    setAcceptLoading(true);
+    setError('');
+
+    try {
+      await acceptEnrollmentRequest(requestId, {
+        scheduled_date: scheduledDate || undefined,
+        notes: agentNotes || undefined,
+      }, idToken);
+
+      // Reload the list
+      const reqs = await getEnrollmentRequests(idToken);
+      setAssignments(reqs);
+      setAcceptingId(null);
+      setScheduledDate('');
+      setAgentNotes('');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to accept request');
+    } finally {
+      setAcceptLoading(false);
+    }
+  }, [idToken, scheduledDate, agentNotes]);
 
   // ─── Handle step capture (cow/muzzle from CameraCapture, texture/selfie direct) ─
   const handleStepCapture = useCallback(async (file: File, step: SessionStep) => {
@@ -467,12 +499,16 @@ export default function AgentEnrollment() {
   }
 
   // ─── RENDER: Assignment list (no active session) ────────────────
+  const pendingRequests = assignments.filter((r) => r.status === 'pending');
+  const assignedRequests = assignments.filter((r) => r.status === 'assigned' || r.status === 'in_progress');
+  const completedRequests = assignments.filter((r) => r.status === 'completed');
+
   return (
     <div className="page enrollment-page">
       <div className="container">
         <div className="page-header">
-          <h2>📋 Assigned Enrollments</h2>
-          <p>Select an enrollment request to begin the on-site capture session.</p>
+          <h2>📋 Enrollment Assignments</h2>
+          <p>Manage enrollment requests and conduct on-site animal registration.</p>
         </div>
 
         {error && <div className="enrollment-error"><span>⚠️</span><p>{error}</p></div>}
@@ -481,42 +517,157 @@ export default function AgentEnrollment() {
           <p className="loading-text">Loading assignments...</p>
         ) : assignments.length === 0 ? (
           <div className="empty-state card">
-            <p>🔍 No assignments yet. Check back later!</p>
+            <p>🔍 No enrollment requests available. Check back later!</p>
           </div>
         ) : (
-          <div className="request-cards">
-            {assignments.map((req) => (
-              <div className="card request-card" key={req.request_id}>
-                <div className="request-card-header">
-                  <span className="request-id">{req.request_id}</span>
-                  <span className="request-status-badge" style={{
-                    background: req.status === 'in_progress' ? '#9c27b0' : '#2196f3'
-                  }}>
-                    {req.status === 'in_progress' ? '🔄 In Progress' : '📋 Assigned'}
-                  </span>
+          <>
+            {/* ── Pending / Available Requests ── */}
+            {pendingRequests.length > 0 && (
+              <div className="request-section">
+                <h3>🆕 Available Requests ({pendingRequests.length})</h3>
+                <p className="section-subtitle">These requests are waiting for an agent. Accept to schedule a visit.</p>
+                <div className="request-cards">
+                  {pendingRequests.map((req) => (
+                    <div className="card request-card" key={req.request_id}>
+                      <div className="request-card-header">
+                        <span className="request-id">{req.request_id}</span>
+                        <span className="request-status-badge" style={{ background: '#ff9800' }}>
+                          ⏳ Pending
+                        </span>
+                      </div>
+                      <div className="request-card-body">
+                        <p>👤 Farmer: <strong>{req.farmer_name || req.farmer_id}</strong></p>
+                        <p>📞 Phone: <strong>{req.farmer_phone || '—'}</strong></p>
+                        <p>📍 {req.address?.village}, {req.address?.district}, {req.address?.state}
+                          {req.address?.pincode ? ` — ${req.address.pincode}` : ''}
+                        </p>
+                        {req.address?.landmark && <p>🗺️ Landmark: {req.address.landmark}</p>}
+                        <p>🐄 {req.animal_count || 1} animal(s)</p>
+                        {req.preferred_date && <p>📅 Preferred: {req.preferred_date}</p>}
+                        <p className="request-date">Requested: {new Date(req.created_at).toLocaleDateString('en-IN')}</p>
+                      </div>
+
+                      {acceptingId === req.request_id ? (
+                        <div className="accept-form">
+                          <div className="form-group">
+                            <label>📅 Schedule Visit Date</label>
+                            <input
+                              type="date"
+                              value={scheduledDate}
+                              onChange={(e) => setScheduledDate(e.target.value)}
+                              min={new Date().toISOString().split('T')[0]}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>📝 Notes (optional)</label>
+                            <input
+                              type="text"
+                              value={agentNotes}
+                              onChange={(e) => setAgentNotes(e.target.value)}
+                              placeholder="e.g., Will arrive by 10 AM"
+                            />
+                          </div>
+                          <div className="accept-form-actions">
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => handleAcceptRequest(req.request_id)}
+                              disabled={acceptLoading}
+                            >
+                              {acceptLoading ? '⏳ Accepting...' : '✅ Confirm & Accept'}
+                            </button>
+                            <button
+                              className="btn btn-outline"
+                              onClick={() => { setAcceptingId(null); setScheduledDate(''); setAgentNotes(''); }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          className="btn btn-primary btn-full"
+                          onClick={() => setAcceptingId(req.request_id)}
+                        >
+                          📋 Accept & Schedule Visit
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div className="request-card-body">
-                  <p>👤 Farmer: <strong>{req.farmer_name || req.farmer_id}</strong></p>
-                  <p>📍 {req.address?.village}, {req.address?.district}, {req.address?.state}</p>
-                  <p>🐄 {req.animal_count || 1} animal(s)</p>
-                  {req.preferred_date && <p>📅 Preferred: {req.preferred_date}</p>}
-                </div>
-                <button
-                  className="btn btn-primary btn-full"
-                  onClick={() => {
-                    if (req.session_id) {
-                      navigate(`/agent-enrollment/${req.session_id}`);
-                    } else {
-                      handleStartSession(req.request_id);
-                    }
-                  }}
-                  disabled={loading}
-                >
-                  {req.session_id ? '▶️ Resume Session' : '🚀 Start Enrollment Session'}
-                </button>
               </div>
-            ))}
-          </div>
+            )}
+
+            {/* ── Assigned / My Requests ── */}
+            {assignedRequests.length > 0 && (
+              <div className="request-section" style={{ marginTop: '1.5rem' }}>
+                <h3>📌 My Assignments ({assignedRequests.length})</h3>
+                <p className="section-subtitle">Requests assigned to you. Start the enrollment session on-site.</p>
+                <div className="request-cards">
+                  {assignedRequests.map((req) => (
+                    <div className="card request-card" key={req.request_id}>
+                      <div className="request-card-header">
+                        <span className="request-id">{req.request_id}</span>
+                        <span className="request-status-badge" style={{
+                          background: req.status === 'in_progress' ? '#9c27b0' : '#2196f3'
+                        }}>
+                          {req.status === 'in_progress' ? '🔄 In Progress' : '📋 Assigned'}
+                        </span>
+                      </div>
+                      <div className="request-card-body">
+                        <p>👤 Farmer: <strong>{req.farmer_name || req.farmer_id}</strong></p>
+                        <p>📞 Phone: <a href={`tel:${req.farmer_phone}`}><strong>{req.farmer_phone || '—'}</strong></a></p>
+                        <p>📍 {req.address?.village}, {req.address?.district}, {req.address?.state}
+                          {req.address?.pincode ? ` — ${req.address.pincode}` : ''}
+                        </p>
+                        {req.address?.landmark && <p>�️ Landmark: {req.address.landmark}</p>}
+                        <p>�🐄 {req.animal_count || 1} animal(s)</p>
+                        {req.scheduled_date && <p>📅 Scheduled: <strong>{req.scheduled_date}</strong></p>}
+                        {req.preferred_date && !req.scheduled_date && <p>📅 Preferred: {req.preferred_date}</p>}
+                        <p className="request-date">Requested: {new Date(req.created_at).toLocaleDateString('en-IN')}</p>
+                      </div>
+                      <button
+                        className="btn btn-primary btn-full"
+                        onClick={() => {
+                          if (req.session_id) {
+                            navigate(`/agent-enrollment/${req.session_id}`);
+                          } else {
+                            handleStartSession(req.request_id);
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        {req.session_id ? '▶️ Resume Enrollment Session' : '🚀 Start Enrollment Session'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Completed ── */}
+            {completedRequests.length > 0 && (
+              <div className="request-section" style={{ marginTop: '1.5rem' }}>
+                <h3>✅ Completed ({completedRequests.length})</h3>
+                <div className="request-cards">
+                  {completedRequests.map((req) => (
+                    <div className="card request-card" key={req.request_id} style={{ opacity: 0.7 }}>
+                      <div className="request-card-header">
+                        <span className="request-id">{req.request_id}</span>
+                        <span className="request-status-badge" style={{ background: '#4caf50' }}>
+                          ✅ Completed
+                        </span>
+                      </div>
+                      <div className="request-card-body">
+                        <p>👤 {req.farmer_name || req.farmer_id}</p>
+                        <p>📍 {req.address?.village}, {req.address?.district}</p>
+                        <p className="request-date">Completed: {new Date(req.updated_at || req.created_at).toLocaleDateString('en-IN')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

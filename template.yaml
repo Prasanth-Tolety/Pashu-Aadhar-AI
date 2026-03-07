@@ -690,6 +690,22 @@ Resources:
             Method: OPTIONS
             Auth:
               Authorizer: NONE
+        AcceptEnrollmentRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}/accept
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        AcceptEnrollmentRequestOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}/accept
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
         # ── Enrollment Sessions (agent workflow) ──
         StartEnrollmentSession:
           Type: Api

@@ -209,6 +209,8 @@ export interface FarmerEnrollmentRequest {
   status: EnrollmentRequestStatus;
   assigned_agent_id?: string;
   assigned_agent_name?: string;
+  scheduled_date?: string;
+  agent_notes?: string;
   session_id?: string;
   created_at: string;
   updated_at?: string;
