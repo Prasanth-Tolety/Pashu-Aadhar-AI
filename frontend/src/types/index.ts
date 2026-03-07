@@ -72,6 +72,27 @@ export interface EnrollmentRequest {
   owner_id?: string;
   latitude?: number;
   longitude?: number;
+  // ── Enhanced metadata for fraud scoring ──
+  agent_id?: string;
+  farmer_id?: string;
+  session_id?: string;
+  ip_address?: string;
+  device_fingerprint?: string;
+  user_agent?: string;
+  screen_resolution?: string;
+  platform?: string;
+  network_type?: string;
+  gps_accuracy?: number;
+  confidence_scores?: {
+    cow_detection?: number;
+    muzzle_detection?: number;
+    body_texture?: number;
+  };
+  // Keys for cow body / texture images
+  cow_image_key?: string;
+  body_texture_key?: string;
+  photo_key?: string;
+  region_code?: string;
 }
 
 export interface EnrollmentResponse {

@@ -62,6 +62,8 @@ export interface CaptureResult {
   file: File;
   /** Object URL for preview (revoked on unmount or retake) */
   previewUrl?: string;
+  /** Detection confidence score (0–1) at time of capture */
+  confidence?: number;
 }
 
 interface AgentLiveCaptureProps {
@@ -784,6 +786,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
     const step = STEPS[currentStepIdx];
     let file: File;
     let highlightRegion: { x: number; y: number; width: number; height: number } | null = null;
+    let captureConfidence: number | undefined;
 
     try {
       if (step.id === 'cow_detection') {
@@ -791,6 +794,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
         const det = cow.bestDetectionRef.current;
         if (!det) return;
         highlightRegion = { x: det.x, y: det.y, width: det.width, height: det.height };
+        captureConfidence = det.confidence;
         // Crop cow region for embedding
         file = await cropRegionFromVideo(video, det, `cow-${Date.now()}.jpg`, 0.20);
       } else if (step.id === 'muzzle_detection') {
@@ -801,6 +805,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
         if (!muzzle && !cowDet) return;
         if (muzzle) {
           highlightRegion = { x: muzzle.x, y: muzzle.y, width: muzzle.width, height: muzzle.height };
+          captureConfidence = muzzle.confidence;
           file = await cropMuzzleFromVideo(video, muzzle, `muzzle-${Date.now()}.jpg`);
         } else if (cowDet) {
           // Fallback: heuristic muzzle crop from lower cow box
@@ -811,6 +816,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
             height: cowDet.height * 0.5,
             confidence: 0.4,
           };
+          captureConfidence = heuristic.confidence;
           highlightRegion = { x: heuristic.x, y: heuristic.y, width: heuristic.width, height: heuristic.height };
           file = await cropMuzzleFromVideo(video, heuristic, `muzzle-${Date.now()}.jpg`);
         } else {
@@ -827,7 +833,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
 
       // Create preview URL for later review
       const previewUrl = URL.createObjectURL(file);
-      const result: CaptureResult = { step: step.id, file, previewUrl };
+      const result: CaptureResult = { step: step.id, file, previewUrl, confidence: captureConfidence };
       playHighlight(highlightRegion);
 
       const newFiles = [...capturedFiles, result];

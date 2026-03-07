@@ -66,6 +66,7 @@ export default function AgentEnrollment() {
   const [stepUploading, setStepUploading] = useState(false);
   const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [completedImages, setCompletedImages] = useState<Record<string, string>>({});
+  const [captureConfidences, setCaptureConfidences] = useState<Record<string, number>>({});
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ livestock_id: string; status: string } | null>(null);
 
@@ -249,6 +250,15 @@ export default function AgentEnrollment() {
       }
 
       setCompletedImages(uploadedImages);
+
+      // Store confidence scores from capture results
+      const confidences: Record<string, number> = {};
+      for (const result of results) {
+        if (result.confidence !== undefined) {
+          confidences[result.step] = result.confidence;
+        }
+      }
+      setCaptureConfidences(confidences);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to upload images');
     } finally {
@@ -277,6 +287,8 @@ export default function AgentEnrollment() {
           imageKey: completedImages.muzzle_detection,
           owner_id: activeSession.farmer_id,
           session_id: activeSession.session_id,
+          agent_id: activeSession.agent_id,
+          farmer_id: activeSession.farmer_id,
         };
 
         // Add cow image key for weighted embedding
@@ -290,11 +302,45 @@ export default function AgentEnrollment() {
           enrollData.body_texture_key = completedImages.body_texture;
         }
 
-        // Get location
+        // Get location + GPS accuracy
         if (locationTrailRef.current.length > 0) {
           const first = locationTrailRef.current[0];
           enrollData.latitude = first.latitude;
           enrollData.longitude = first.longitude;
+          enrollData.gps_accuracy = first.accuracy;
+        }
+
+        // ── Enhanced metadata for fraud scoring ──
+        const deviceMeta = collectDeviceMetadata();
+        enrollData.user_agent = deviceMeta.user_agent;
+        enrollData.screen_resolution = `${deviceMeta.screen_width}x${deviceMeta.screen_height}`;
+        enrollData.platform = deviceMeta.platform;
+
+        // Network type
+        const conn = (navigator as unknown as { connection?: { effectiveType?: string } }).connection;
+        if (conn?.effectiveType) {
+          enrollData.network_type = conn.effectiveType;
+        }
+
+        // Device fingerprint (simple canvas-based)
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('PashuAadhaar-fp', 2, 2);
+            enrollData.device_fingerprint = canvas.toDataURL().slice(-50);
+          }
+        } catch { /* non-fatal */ }
+
+        // Confidence scores from detection
+        if (Object.keys(captureConfidences).length > 0) {
+          enrollData.confidence_scores = {
+            cow_detection: captureConfidences.cow_detection,
+            muzzle_detection: captureConfidences.muzzle_detection,
+            body_texture: captureConfidences.body_texture,
+          };
         }
 
         const result = await enroll(enrollData as never, idToken);
@@ -315,7 +361,7 @@ export default function AgentEnrollment() {
     } finally {
       setLoading(false);
     }
-  }, [idToken, activeSession, completedImages]);
+  }, [idToken, activeSession, completedImages, captureConfidences]);
 
   // Check if all required steps are done
   const requiredSteps = STEP_CONFIG.filter((s) => s.required).map((s) => s.id);

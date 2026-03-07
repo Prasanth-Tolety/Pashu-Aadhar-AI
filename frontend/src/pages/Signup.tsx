@@ -138,6 +138,51 @@ export default function Signup() {
     ? `linear-gradient(160deg, ${roleConfig.color}10 0%, #f0f4ff 40%, ${roleConfig.color}15 100%)`
     : 'linear-gradient(160deg, #f0f4ff 0%, #e8eaf6 30%, #f3e5f5 70%, #fce4ec 100%)';
 
+  // ─── Step 1: Full-page Role Selection ────────────────────────────
+  if (step === 'role') {
+    return (
+      <div className="role-page" style={{ background: bgGradient }}>
+        <Link to="/" className="auth-home-link">🏠 {t.home}</Link>
+        <div className="role-page-header">
+          <div className="auth-lang-row">
+            <LanguageSelector compact />
+          </div>
+          <h1 className="role-page-title">🐄 {t.appNameHindi}</h1>
+          <h2 className="role-page-subtitle">{t.appName}</h2>
+          <p className="role-page-desc">{t.chooseRole}</p>
+        </div>
+
+        {error && <div className="auth-error" style={{ maxWidth: 600, margin: '0 auto 1rem' }}>{error}</div>}
+
+        <div className="role-grid">
+          {ALL_ROLES.map((role) => {
+            const config = ROLE_CONFIG[role];
+            return (
+              <button
+                key={role}
+                className="role-tile"
+                onClick={() => handleRoleSelect(role)}
+              >
+                <div className="role-tile-icon-wrap" style={{ background: config.gradient }}>
+                  <span className="role-tile-icon">{config.icon}</span>
+                </div>
+                <span className="role-tile-label">{config.label}</span>
+                <span className="role-tile-desc">{config.description}</span>
+                <span className="role-tile-arrow" style={{ color: config.color }}>Get Started →</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="role-page-footer">
+          {t.alreadyHaveAccount}{' '}
+          <Link to="/login" className="auth-footer-link">{t.signIn}</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Steps 2 & 3: Regular card layout ────────────────────────────
   return (
     <div className="auth-container" style={{ background: bgGradient }}>
       <Link to="/" className="auth-home-link">🏠 {t.home}</Link>
@@ -149,9 +194,6 @@ export default function Signup() {
           </div>
           <h1>🐄 {t.appNameHindi}</h1>
           <h2>{t.appName}</h2>
-          {step === 'role' && (
-            <p className="auth-subtitle">{t.chooseRole}</p>
-          )}
           {step === 'form' && roleConfig && (
             <div className="selected-role-badge" style={{ background: roleConfig.color }}>
               <span>{roleConfig.icon}</span> {roleConfig.label}
@@ -164,30 +206,6 @@ export default function Signup() {
 
         {error && <div className="auth-error">{error}</div>}
         {info && <div className="auth-info">{info}</div>}
-
-        {/* Step 1: Role Selection */}
-        {step === 'role' && (
-          <div className="role-selection">
-            {ALL_ROLES.map((role) => {
-              const config = ROLE_CONFIG[role];
-              return (
-                <button
-                  key={role}
-                  className="role-card"
-                  onClick={() => handleRoleSelect(role)}
-                  style={{ borderColor: config.color }}
-                >
-                  <span className="role-card-icon">{config.icon}</span>
-                  <div className="role-card-content">
-                    <span className="role-card-label">{config.label}</span>
-                    <span className="role-card-desc">{config.description}</span>
-                  </div>
-                  <span className="role-card-arrow" style={{ color: config.color }}>→</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
 
         {/* Step 2: Signup Form */}
         {step === 'form' && (

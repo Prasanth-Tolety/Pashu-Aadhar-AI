@@ -924,6 +924,32 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  # DynamoDB Table: Fraud Scores
+  FraudScoresTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: fraud_scores
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: livestock_id
+          AttributeType: S
+        - AttributeName: agent_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: livestock_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: agent-index
+          KeySchema:
+            - AttributeName: agent_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   # DynamoDB Table: Enrollment Agents (registry)
   EnrollmentAgentsTable:
     Type: AWS::DynamoDB::Table

@@ -2,7 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { SageMakerRuntimeClient, InvokeEndpointCommand } from '@aws-sdk/client-sagemaker-runtime';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { Client as OpenSearchClient } from '@opensearch-project/opensearch';
 import { AwsSigv4Signer } from '@opensearch-project/opensearch/aws';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
@@ -13,6 +13,7 @@ import {
   validateImageKey,
   generateLivestockId,
 } from '../shared/utils';
+import { computeFraudRiskScore, type FraudInput } from '../shared/fraudScoring';
 import {
   DEFAULT_SIMILARITY_THRESHOLD,
   OPENSEARCH_REQUEST_TIMEOUT_MS,
@@ -31,6 +32,8 @@ const OPENSEARCH_INDEX = process.env.OPENSEARCH_INDEX || 'livestock-embeddings';
 const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || String(DEFAULT_SIMILARITY_THRESHOLD));
 const ANIMALS_TABLE = 'animals';
 const EMBEDDINGS_TABLE = 'embeddings';
+const FRAUD_SCORES_TABLE = 'fraud_scores';
+const ENROLLMENT_SESSIONS_TABLE = 'enrollment_sessions';
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
 // Ensure the OpenSearch endpoint has the https:// protocol prefix
@@ -222,19 +225,25 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     cow_image_key?: string;
     body_texture_key?: string;
     session_id?: string;
+    // Metadata for fraud scoring
+    agent_id?: string;
+    farmer_id?: string;
+    ip_address?: string;
+    device_fingerprint?: string;
+    user_agent?: string;
+    screen_resolution?: string;
+    platform?: string;
+    network_type?: string;
+    gps_accuracy?: number;
+    // Confidence scores from frontend detection
+    confidence_scores?: {
+      cow_detection?: number;
+      muzzle_detection?: number;
+      body_texture?: number;
+    };
   };
   try {
-    body = JSON.parse(event.body) as {
-      imageKey?: unknown;
-      owner_id?: string;
-      latitude?: number;
-      longitude?: number;
-      photo_key?: string;
-      region_code?: string;
-      cow_image_key?: string;
-      body_texture_key?: string;
-      session_id?: string;
-    };
+    body = JSON.parse(event.body) as typeof body;
   } catch {
     return buildErrorResponse(400, 'INVALID_JSON', 'Invalid JSON in request body', ALLOWED_ORIGIN);
   }
@@ -424,6 +433,11 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (body.body_texture_key) animalItem.body_texture_key = body.body_texture_key;
     if (body.session_id) animalItem.enrollment_session_id = body.session_id;
 
+    // Store confidence scores observed during enrollment
+    if (body.confidence_scores) {
+      animalItem.confidence_scores = body.confidence_scores;
+    }
+
     try {
       await ddbClient.send(new PutCommand({
         TableName: ANIMALS_TABLE,
@@ -433,6 +447,106 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     } catch (ddbErr) {
       // Non-fatal: OpenSearch enrollment succeeded, DynamoDB is supplementary
       logger.warn('Failed to save animal to DynamoDB (non-fatal)', ddbErr);
+    }
+
+    // ── Compute fraud risk score (async, non-fatal) ──
+    try {
+      // Gather agent stats for fraud scoring
+      let agentEnrollmentsLastHour = 0;
+      let deviceEnrollmentsToday = 0;
+      let deviceUsedByOtherAgents = false;
+
+      const agentId = body.agent_id || body.owner_id || 'unknown';
+      const deviceFp = body.device_fingerprint || '';
+
+      if (body.session_id && agentId !== 'unknown') {
+        // Count agent enrollments in last hour
+        try {
+          const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          const agentSessions = await ddbClient.send(new QueryCommand({
+            TableName: ENROLLMENT_SESSIONS_TABLE,
+            IndexName: 'agent-index',
+            KeyConditionExpression: 'agent_id = :aid',
+            FilterExpression: 'started_at > :h AND #s = :completed',
+            ExpressionAttributeNames: { '#s': 'status' },
+            ExpressionAttributeValues: {
+              ':aid': agentId,
+              ':h': hourAgo,
+              ':completed': 'completed',
+            },
+            Select: 'COUNT',
+          }));
+          agentEnrollmentsLastHour = agentSessions.Count || 0;
+        } catch { /* non-fatal */ }
+
+        // Check device fingerprint reuse
+        if (deviceFp) {
+          try {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const deviceSessions = await ddbClient.send(new ScanCommand({
+              TableName: ENROLLMENT_SESSIONS_TABLE,
+              FilterExpression: 'contains(metadata.device_info.fingerprint, :fp) AND started_at > :today',
+              ExpressionAttributeValues: {
+                ':fp': deviceFp,
+                ':today': todayStart.toISOString(),
+              },
+            }));
+            deviceEnrollmentsToday = deviceSessions.Count || 0;
+            // Check if different agents used this device
+            const agentIds = new Set((deviceSessions.Items || []).map(i => i.agent_id));
+            deviceUsedByOtherAgents = agentIds.size > 1;
+          } catch { /* non-fatal */ }
+        }
+      }
+
+      const fraudInput: FraudInput = {
+        session_id: body.session_id || `NOSESS-${newLivestockId}`,
+        agent_id: agentId,
+        farmer_id: body.farmer_id || body.owner_id || 'unknown',
+        embedding_similarity: similarity || 0,
+        confidence_scores: body.confidence_scores || {},
+        metadata: {
+          ip_address: body.ip_address || event.requestContext?.identity?.sourceIp,
+          device_fingerprint: deviceFp,
+          user_agent: body.user_agent || event.headers?.['User-Agent'],
+          screen_resolution: body.screen_resolution,
+          platform: body.platform,
+          gps_latitude: body.latitude,
+          gps_longitude: body.longitude,
+          gps_accuracy: body.gps_accuracy,
+          network_type: body.network_type,
+          timestamp: enrolledAt,
+        },
+        agent_enrollments_last_hour: agentEnrollmentsLastHour,
+        device_enrollments_today: deviceEnrollmentsToday,
+        device_used_by_other_agents: deviceUsedByOtherAgents,
+      };
+
+      const fraudScore = computeFraudRiskScore(fraudInput);
+
+      // Store fraud score in dedicated table
+      await ddbClient.send(new PutCommand({
+        TableName: FRAUD_SCORES_TABLE,
+        Item: {
+          livestock_id: newLivestockId,
+          session_id: body.session_id || null,
+          agent_id: agentId,
+          farmer_id: body.farmer_id || body.owner_id || null,
+          ...fraudScore,
+          metadata: fraudInput.metadata,
+          confidence_scores: body.confidence_scores || null,
+          created_at: enrolledAt,
+        },
+      }));
+      logger.info('Fraud score computed and stored', {
+        livestock_id: newLivestockId,
+        fraud_risk_score: fraudScore.fraud_risk_score,
+        risk_level: fraudScore.risk_level,
+        flags_count: fraudScore.flags.length,
+      });
+    } catch (fraudErr) {
+      logger.warn('Failed to compute/store fraud score (non-fatal)', fraudErr);
     }
 
     return buildResponse(

@@ -156,6 +156,7 @@ export default function Dashboard() {
         </div>
         <div className="header-right">
           <LanguageSelector compact />
+          <button onClick={loadDashboardData} className="refresh-btn-small" title={t.refresh}>🔄</button>
           <div className="user-info">
             <span className="user-name">{user?.name || 'User'}</span>
             <span className="user-display-id">{displayId}</span>
@@ -205,10 +206,6 @@ export default function Dashboard() {
                 <span className="action-icon">👤</span>
                 <span className="action-label">{t.myProfile}</span>
               </Link>
-              <button onClick={loadDashboardData} className="action-card refresh-action">
-                <span className="action-icon">🔄</span>
-                <span className="action-label">{t.refresh}</span>
-              </button>
             </section>
 
             {/* Farmer's Animals */}
