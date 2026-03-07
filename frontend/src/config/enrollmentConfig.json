@@ -1,0 +1,93 @@
+{
+  "features": {
+    "location_tracking": {
+      "enabled": true,
+      "description": "Continuously track GPS location during enrollment session",
+      "continuous": true,
+      "interval_ms": 5000
+    },
+    "video_recording": {
+      "enabled": false,
+      "description": "Record video of entire enrollment session for audit trail",
+      "max_duration_sec": 300,
+      "storage": "s3_cache",
+      "cache_ttl_days": 7
+    },
+    "microphone_recording": {
+      "enabled": false,
+      "description": "Record audio during enrollment session for fraud verification",
+      "storage": "s3_cache",
+      "cache_ttl_days": 7
+    },
+    "device_metadata": {
+      "enabled": true,
+      "description": "Capture device info (user agent, screen size, IP, etc.)",
+      "collect_ip": true,
+      "collect_user_agent": true,
+      "collect_screen_info": true,
+      "collect_battery_info": true
+    },
+    "agent_selfie": {
+      "enabled": true,
+      "description": "Require agent to take a selfie at end of enrollment for fraud check"
+    },
+    "body_texture_capture": {
+      "enabled": true,
+      "description": "Capture full side-view body texture of the animal (for future use)"
+    }
+  },
+  "embeddings": {
+    "weights": {
+      "muzzle": 0.80,
+      "cow_body": 0.15,
+      "body_texture": 0.05
+    },
+    "similarity_threshold": 0.85,
+    "description": "Weighted similarity: 80% muzzle print, 15% cow full body, 5% body texture pattern"
+  },
+  "enrollment_session": {
+    "steps": [
+      {
+        "id": "cow_detection",
+        "label": "Cow Detection",
+        "description": "Detect and capture cow full body image",
+        "icon": "🐄",
+        "model": "cow",
+        "required": true
+      },
+      {
+        "id": "muzzle_detection",
+        "label": "Muzzle Detection",
+        "description": "Detect and capture muzzle close-up for biometric ID",
+        "icon": "👃",
+        "model": "muzzle",
+        "required": true
+      },
+      {
+        "id": "body_texture",
+        "label": "Body Texture",
+        "description": "Capture full side-view body image for texture analysis",
+        "icon": "📸",
+        "model": null,
+        "required": false
+      },
+      {
+        "id": "agent_selfie",
+        "label": "Agent Selfie",
+        "description": "Agent takes a verification selfie",
+        "icon": "🤳",
+        "model": null,
+        "required": true
+      }
+    ],
+    "agent_assignment": {
+      "strategy": "round_robin",
+      "description": "Agents are assigned in round-robin order. Fallback: random assignment."
+    },
+    "cache": {
+      "video_ttl_days": 7,
+      "session_metadata_ttl_days": 90,
+      "description": "Videos auto-deleted after 7 days. Session metadata kept for 90 days."
+    }
+  }
+}

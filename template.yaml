@@ -75,6 +75,10 @@ Resources:
             Status: Enabled
             Prefix: uploads/
             ExpirationInDays: 30
+          - Id: DeleteVideoCacheAfter7Days
+            Status: Enabled
+            Prefix: video-cache/
+            ExpirationInDays: 7
 
   # Shared utilities Lambda layer
   SharedUtilsLayer:
@@ -152,6 +156,12 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/access_requests/index/*'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/loan_collateral'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/loan_collateral/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_requests'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_requests/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_sessions'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_sessions/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_agents'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_agents/index/*'
 
   # API Gateway
   PashuAadhaarApi:
@@ -620,6 +630,172 @@ Resources:
         EntryPoints:
           - access-requests/handler.ts
 
+  # Enrollment Sessions Lambda
+  EnrollmentSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-enrollment-sessions-${Stage}'
+      CodeUri: backend/
+      Handler: enrollment-sessions/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Enrollment session management - farmer requests, agent sessions, step tracking
+      Timeout: 30
+      MemorySize: 512
+      Layers:
+        - !Ref SharedUtilsLayer
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          S3_BUCKET_NAME: !Ref S3BucketName
+          ENROLL_FUNCTION_NAME: !Ref EnrollFunction
+      Events:
+        # ── Enrollment Requests (farmer CRUD) ──
+        CreateEnrollmentRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ListEnrollmentRequests:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentRequestsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetEnrollmentRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentRequestByIdOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        # ── Enrollment Sessions (agent workflow) ──
+        StartEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ListEnrollmentSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentSessionsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        UpdateEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentSessionByIdOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        StepEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/step
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        StepEnrollmentSessionOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/step
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        CompleteEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/complete
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        CompleteEnrollmentSessionOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/complete
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        MetadataEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/metadata
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        MetadataEnrollmentSessionOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/metadata
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - enrollment-sessions/handler.ts
+
   # DynamoDB Table: Access Requests
   AccessRequestsTable:
     Type: AWS::DynamoDB::Table
@@ -656,6 +832,106 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  # DynamoDB Table: Enrollment Requests
+  EnrollmentRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: enrollment_requests
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: request_id
+          AttributeType: S
+        - AttributeName: farmer_id
+          AttributeType: S
+        - AttributeName: assigned_agent_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: request_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: farmer-index
+          KeySchema:
+            - AttributeName: farmer_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: agent-index
+          KeySchema:
+            - AttributeName: assigned_agent_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # DynamoDB Table: Enrollment Sessions
+  EnrollmentSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: enrollment_sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: agent_id
+          AttributeType: S
+        - AttributeName: farmer_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: agent-index
+          KeySchema:
+            - AttributeName: agent_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: farmer-index
+          KeySchema:
+            - AttributeName: farmer_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # DynamoDB Table: Enrollment Agents (registry)
+  EnrollmentAgentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: enrollment_agents
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: agent_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: agent_id
+          KeyType: HASH
+
+  # Allow enrollment-sessions Lambda to invoke enroll Lambda
+  EnrollmentSessionsInvokeEnrollPermission:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: EnrollmentSessionsInvokeEnroll
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !GetAtt EnrollFunction.Arn
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
@@ -688,3 +964,7 @@ Outputs:
   AccessRequestsFunctionArn:
     Description: Access Requests Lambda function ARN
     Value: !GetAtt AccessRequestsFunction.Arn
+
+  EnrollmentSessionsFunctionArn:
+    Description: Enrollment Sessions Lambda function ARN
+    Value: !GetAtt EnrollmentSessionsFunction.Arn

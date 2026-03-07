@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Enrollment from './pages/Enrollment'
+import AgentEnrollment from './pages/AgentEnrollment'
 import Result from './pages/Result'
 import AnimalDetail from './pages/AnimalDetail'
 import Profile from './pages/Profile'
@@ -69,6 +70,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Enrollment />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/agent-enrollment/:sessionId"
+          element={
+            <ProtectedRoute>
+              <AgentEnrollment />
             </ProtectedRoute>
           }
         />

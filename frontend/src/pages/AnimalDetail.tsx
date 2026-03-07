@@ -129,6 +129,13 @@ const ROLE_PERMISSIONS: Record<UserRole, {
     canAddInsurance: true, canAddLoan: true,
     canViewLocation: true, canViewOwner: true,
   },
+  enrollment_agent: {
+    canViewDetails: true, canViewHealth: false, canViewMilk: false,
+    canViewInsurance: false, canViewLoans: false,
+    canEditDetails: false, canAddHealth: false, canAddMilk: false,
+    canAddInsurance: false, canAddLoan: false,
+    canViewLocation: true, canViewOwner: false,
+  },
 };
 
 export default function AnimalDetail() {

@@ -1,5 +1,5 @@
 // ─── Roles ───────────────────────────────────────────────────────────
-export type UserRole = 'farmer' | 'veterinarian' | 'insurer' | 'government' | 'admin';
+export type UserRole = 'farmer' | 'enrollment_agent' | 'veterinarian' | 'insurer' | 'government' | 'admin';
 
 export const ROLE_CONFIG: Record<UserRole, {
   label: string;
@@ -15,7 +15,15 @@ export const ROLE_CONFIG: Record<UserRole, {
     color: '#2e7d32',
     gradient: 'linear-gradient(135deg, #43a047 0%, #2e7d32 100%)',
     icon: '🧑‍🌾',
-    description: 'Livestock owner — enroll, manage & track your animals',
+    description: 'Livestock owner — request enrollment & manage your animals',
+  },
+  enrollment_agent: {
+    label: 'Enrollment Agent',
+    prefix: 'AGT',
+    color: '#0277bd',
+    gradient: 'linear-gradient(135deg, #29b6f6 0%, #0277bd 100%)',
+    icon: '📋',
+    description: 'Field agent — conduct on-site animal enrollment sessions',
   },
   veterinarian: {
     label: 'Veterinarian',
@@ -51,7 +59,7 @@ export const ROLE_CONFIG: Record<UserRole, {
   },
 };
 
-export const ALL_ROLES: UserRole[] = ['farmer', 'veterinarian', 'insurer', 'government', 'admin'];
+export const ALL_ROLES: UserRole[] = ['farmer', 'enrollment_agent', 'veterinarian', 'insurer', 'government', 'admin'];
 
 // ─── API ─────────────────────────────────────────────────────────────
 export interface UploadUrlResponse {
@@ -179,4 +187,75 @@ export interface AnimalFormData {
   village: string;
   district: string;
   state: string;
+}
+
+// ─── Enrollment Request (farmer → agent assignment) ─────────────────
+export type EnrollmentRequestStatus = 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface FarmerEnrollmentRequest {
+  request_id: string;
+  farmer_id: string;
+  farmer_name?: string;
+  farmer_phone?: string;
+  address: {
+    village: string;
+    district: string;
+    state: string;
+    pincode?: string;
+    landmark?: string;
+  };
+  animal_count?: number;
+  preferred_date?: string;
+  status: EnrollmentRequestStatus;
+  assigned_agent_id?: string;
+  assigned_agent_name?: string;
+  session_id?: string;
+  created_at: string;
+  updated_at?: string;
+  completed_at?: string;
+}
+
+// ─── Enrollment Session (agent-driven capture) ──────────────────────
+export type SessionStep = 'cow_detection' | 'muzzle_detection' | 'body_texture' | 'agent_selfie';
+export type SessionStatus = 'active' | 'completed' | 'abandoned';
+
+export interface EnrollmentSessionMetadata {
+  device_info: {
+    user_agent: string;
+    screen_width: number;
+    screen_height: number;
+    platform: string;
+    battery_level?: number;
+    battery_charging?: boolean;
+  };
+  ip_address?: string;
+  location_trail: Array<{
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    timestamp: string;
+  }>;
+  // Placeholders for future recording features
+  video_key?: string | null;
+  audio_key?: string | null;
+}
+
+export interface EnrollmentSession {
+  session_id: string;
+  request_id: string;
+  agent_id: string;
+  agent_name?: string;
+  farmer_id: string;
+  status: SessionStatus;
+  current_step: SessionStep;
+  steps_completed: SessionStep[];
+  // S3 keys for captured images
+  cow_image_key?: string;
+  muzzle_image_key?: string;
+  body_texture_key?: string;
+  agent_selfie_key?: string;
+  // Metadata for fraud detection
+  metadata: EnrollmentSessionMetadata;
+  started_at: string;
+  completed_at?: string;
 }

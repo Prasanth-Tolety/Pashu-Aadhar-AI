@@ -128,6 +128,63 @@ async function searchSimilarEmbeddings(embedding: number[]): Promise<OpenSearchR
   return response.body as OpenSearchResponse;
 }
 
+/**
+ * Weighted embedding search: combine similarity scores from multiple embeddings.
+ * Weights: muzzle 80%, cow_body 10%, body_texture 10% (configurable).
+ */
+async function searchWeightedSimilarity(
+  muzzleEmbedding: number[],
+  cowEmbedding: number[] | null,
+  bodyTextureEmbedding: number[] | null,
+): Promise<{ bestMatch: OpenSearchHit | null; weightedScore: number }> {
+  const MUZZLE_WEIGHT = 0.80;
+  const COW_WEIGHT = 0.10;
+  const TEXTURE_WEIGHT = 0.10;
+
+  // Primary search on muzzle (always available)
+  const muzzleResult = await searchSimilarEmbeddings(muzzleEmbedding);
+  const muzzleHit = muzzleResult.hits.hits[0] || null;
+  if (!muzzleHit) return { bestMatch: null, weightedScore: 0 };
+
+  let weightedScore = muzzleHit._score * MUZZLE_WEIGHT;
+  let totalWeight = MUZZLE_WEIGHT;
+
+  // If cow embedding available, search for the same livestock_id in cow index
+  if (cowEmbedding) {
+    try {
+      const cowResult = await searchSimilarEmbeddings(cowEmbedding);
+      const cowHit = cowResult.hits.hits[0];
+      if (cowHit && cowHit._source.livestock_id === muzzleHit._source.livestock_id) {
+        weightedScore += cowHit._score * COW_WEIGHT;
+      }
+      totalWeight += COW_WEIGHT;
+    } catch (err) {
+      logger.warn('Cow embedding search failed, using muzzle only', err);
+    }
+  }
+
+  // If body texture embedding available
+  if (bodyTextureEmbedding) {
+    try {
+      const textureResult = await searchSimilarEmbeddings(bodyTextureEmbedding);
+      const textureHit = textureResult.hits.hits[0];
+      if (textureHit && textureHit._source.livestock_id === muzzleHit._source.livestock_id) {
+        weightedScore += textureHit._score * TEXTURE_WEIGHT;
+      }
+      totalWeight += TEXTURE_WEIGHT;
+    } catch (err) {
+      logger.warn('Body texture embedding search failed, using muzzle only', err);
+    }
+  }
+
+  // Normalize by actual weight used
+  if (totalWeight > 0 && totalWeight < 1) {
+    weightedScore = weightedScore / totalWeight;
+  }
+
+  return { bestMatch: muzzleHit, weightedScore };
+}
+
 async function storeNewEmbedding(livestockId: string, embedding: number[], imageKey: string): Promise<void> {
   const client = getOpenSearchClient();
   await client.index({
@@ -162,6 +219,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     longitude?: number;
     photo_key?: string;
     region_code?: string;
+    cow_image_key?: string;
+    body_texture_key?: string;
+    session_id?: string;
   };
   try {
     body = JSON.parse(event.body) as {
@@ -171,6 +231,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       longitude?: number;
       photo_key?: string;
       region_code?: string;
+      cow_image_key?: string;
+      body_texture_key?: string;
+      session_id?: string;
     };
   } catch {
     return buildErrorResponse(400, 'INVALID_JSON', 'Invalid JSON in request body', ALLOWED_ORIGIN);
@@ -195,14 +258,54 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     logger.info('Retrieving image from S3', { imageKey });
     const imageBuffer = await getImageFromS3(imageKey);
 
-    logger.info('Generating embedding from SageMaker', { imageKey });
-    const embedding = await getEmbeddingFromSageMaker(imageBuffer);
+    logger.info('Generating muzzle embedding from SageMaker', { imageKey });
+    const muzzleEmbedding = await getEmbeddingFromSageMaker(imageBuffer);
 
-    logger.info('Searching for similar embeddings in OpenSearch', { imageKey });
-    const searchResult = await searchSimilarEmbeddings(embedding);
+    // Generate additional embeddings if provided (for weighted search)
+    let cowEmbedding: number[] | null = null;
+    let bodyTextureEmbedding: number[] | null = null;
 
-    const topHit = searchResult.hits.hits[0];
-    const similarity = topHit ? topHit._score : 0;
+    if (body.cow_image_key) {
+      try {
+        logger.info('Generating cow body embedding', { cow_image_key: body.cow_image_key });
+        const cowBuffer = await getImageFromS3(body.cow_image_key);
+        cowEmbedding = await getEmbeddingFromSageMaker(cowBuffer);
+      } catch (err) {
+        logger.warn('Failed to generate cow embedding (non-fatal)', err);
+      }
+    }
+
+    if (body.body_texture_key) {
+      try {
+        logger.info('Generating body texture embedding', { body_texture_key: body.body_texture_key });
+        const textureBuffer = await getImageFromS3(body.body_texture_key);
+        bodyTextureEmbedding = await getEmbeddingFromSageMaker(textureBuffer);
+      } catch (err) {
+        logger.warn('Failed to generate body texture embedding (non-fatal)', err);
+      }
+    }
+
+    logger.info('Searching for similar embeddings (weighted)', {
+      imageKey,
+      hasCowEmbedding: !!cowEmbedding,
+      hasTextureEmbedding: !!bodyTextureEmbedding,
+    });
+
+    // Use weighted similarity when extra embeddings are available
+    const useWeighted = cowEmbedding || bodyTextureEmbedding;
+    let topHit: OpenSearchHit | null = null;
+    let similarity = 0;
+
+    if (useWeighted) {
+      const weighted = await searchWeightedSimilarity(muzzleEmbedding, cowEmbedding, bodyTextureEmbedding);
+      topHit = weighted.bestMatch;
+      similarity = weighted.weightedScore;
+      logger.info('Weighted similarity result', { similarity, hasMatch: !!topHit });
+    } else {
+      const searchResult = await searchSimilarEmbeddings(muzzleEmbedding);
+      topHit = searchResult.hits.hits[0] || null;
+      similarity = topHit ? topHit._score : 0;
+    }
 
     if (topHit && similarity >= SIMILARITY_THRESHOLD) {
       logger.info('Existing animal found', {
@@ -226,7 +329,48 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const modelVersion = 'clip-vit-base-v1';
     logger.info('Enrolling new animal', { livestock_id: newLivestockId, embedding_id: embeddingId });
 
-    await storeNewEmbedding(newLivestockId, embedding, imageKey);
+    await storeNewEmbedding(newLivestockId, muzzleEmbedding, imageKey);
+
+    // Store additional embeddings for cow body and body texture (if available)
+    if (cowEmbedding && body.cow_image_key) {
+      try {
+        const cowClient = getOpenSearchClient();
+        await cowClient.index({
+          index: OPENSEARCH_INDEX,
+          id: `${newLivestockId}-cow`,
+          body: {
+            livestock_id: newLivestockId,
+            embedding: cowEmbedding,
+            image_key: body.cow_image_key,
+            embedding_type: 'cow_body',
+            enrolled_at: new Date().toISOString(),
+          },
+        });
+        logger.info('Cow body embedding stored', { livestock_id: newLivestockId });
+      } catch (err) {
+        logger.warn('Failed to store cow embedding (non-fatal)', err);
+      }
+    }
+
+    if (bodyTextureEmbedding && body.body_texture_key) {
+      try {
+        const textureClient = getOpenSearchClient();
+        await textureClient.index({
+          index: OPENSEARCH_INDEX,
+          id: `${newLivestockId}-texture`,
+          body: {
+            livestock_id: newLivestockId,
+            embedding: bodyTextureEmbedding,
+            image_key: body.body_texture_key,
+            embedding_type: 'body_texture',
+            enrolled_at: new Date().toISOString(),
+          },
+        });
+        logger.info('Body texture embedding stored', { livestock_id: newLivestockId });
+      } catch (err) {
+        logger.warn('Failed to store body texture embedding (non-fatal)', err);
+      }
+    }
 
     // ── Store embedding reference in DynamoDB embeddings table (per schema §3.2) ──
     try {
@@ -276,6 +420,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
     if (body.photo_key) animalItem.photo_key = body.photo_key;
     if (body.region_code) animalItem.region_code = body.region_code;
+    if (body.cow_image_key) animalItem.cow_image_key = body.cow_image_key;
+    if (body.body_texture_key) animalItem.body_texture_key = body.body_texture_key;
+    if (body.session_id) animalItem.enrollment_session_id = body.session_id;
 
     try {
       await ddbClient.send(new PutCommand({

@@ -6,6 +6,8 @@ import {
   Animal,
   AccessRequest,
   AnimalFormData,
+  FarmerEnrollmentRequest,
+  EnrollmentSession,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -139,6 +141,103 @@ export async function addLoanRecord(
   token: string
 ) {
   const res = await apiClient.post(`/animals/${livestockId}/loans`, data, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+// ─── Enrollment Requests (Farmer → Agent) ────────────────────────────
+export async function createEnrollmentRequest(
+  data: {
+    address: { village: string; district: string; state: string; pincode?: string; landmark?: string };
+    animal_count?: number;
+    preferred_date?: string;
+  },
+  token: string
+): Promise<{ request: FarmerEnrollmentRequest; message: string }> {
+  const res = await apiClient.post('/enrollment-requests', data, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+export async function getEnrollmentRequests(token: string): Promise<FarmerEnrollmentRequest[]> {
+  const res = await apiClient.get('/enrollment-requests', {
+    headers: authHeaders(token),
+  });
+  return res.data.requests || [];
+}
+
+export async function getEnrollmentRequest(requestId: string, token: string): Promise<FarmerEnrollmentRequest> {
+  const res = await apiClient.get(`/enrollment-requests/${requestId}`, {
+    headers: authHeaders(token),
+  });
+  return res.data.request;
+}
+
+// ─── Enrollment Sessions (Agent-driven) ──────────────────────────────
+export async function startEnrollmentSession(
+  data: {
+    request_id: string;
+    metadata?: {
+      device_info?: Record<string, unknown>;
+      location_trail?: Array<Record<string, unknown>>;
+    };
+  },
+  token: string
+): Promise<{ session: EnrollmentSession }> {
+  const res = await apiClient.post('/enrollment-sessions', data, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+export async function getEnrollmentSessions(token: string): Promise<EnrollmentSession[]> {
+  const res = await apiClient.get('/enrollment-sessions', {
+    headers: authHeaders(token),
+  });
+  return res.data.sessions || [];
+}
+
+export async function getEnrollmentSession(sessionId: string, token: string): Promise<EnrollmentSession> {
+  const res = await apiClient.get(`/enrollment-sessions/${sessionId}`, {
+    headers: authHeaders(token),
+  });
+  return res.data.session;
+}
+
+export async function completeSessionStep(
+  sessionId: string,
+  data: {
+    step: string;
+    image_key?: string;
+    location?: { latitude: number; longitude: number; accuracy: number };
+  },
+  token: string
+) {
+  const res = await apiClient.post(`/enrollment-sessions/${sessionId}/step`, data, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+export async function completeEnrollmentSession(sessionId: string, token: string) {
+  const res = await apiClient.post(`/enrollment-sessions/${sessionId}/complete`, {}, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+export async function updateSessionMetadata(
+  sessionId: string,
+  data: {
+    location_trail?: Array<Record<string, unknown>>;
+    video_key?: string;
+    audio_key?: string;
+  },
+  token: string
+) {
+  const res = await apiClient.post(`/enrollment-sessions/${sessionId}/metadata`, data, {
     headers: authHeaders(token),
   });
   return res.data;
