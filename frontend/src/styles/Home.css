@@ -4,6 +4,60 @@
   background: #fafbff;
 }
 
+/* ─── Indian Government Tricolor Top Bar ─────────────────────────── */
+.india-tricolor-top {
+  display: flex;
+  height: 4px;
+  width: 100%;
+}
+
+.tri-band { flex: 1; }
+.tri-band.saffron { background: #FF9933; }
+.tri-band.white   { background: #FFFFFF; }
+.tri-band.green   { background: #138808; }
+
+/* Government Badge Bar */
+.govt-badge-bar {
+  background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
+  padding: 0.4rem 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.govt-badge-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ashoka-small {
+  width: 22px;
+  height: 22px;
+  filter: brightness(0) invert(1);
+}
+
+.govt-badge-text {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.govt-badge-ministry {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.65rem;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .govt-badge-ministry { display: inline; }
+  .govt-badge-inner { gap: 0.8rem; }
+  .govt-badge-inner::after {
+    content: '🇮🇳';
+    font-size: 0.9rem;
+  }
+}
+
 /* ─── Nav ─────────────────────────────────────────────────────────── */
 .landing-nav {
   display: flex;
@@ -367,6 +421,41 @@
   background: #1a1a2e;
   color: #888;
   font-size: 0.85rem;
+}
+
+.footer-tricolor {
+  display: flex;
+  height: 4px;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.footer-govt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.footer-emblem {
+  width: 36px;
+  height: 36px;
+  filter: brightness(0) invert(1) opacity(0.6);
+}
+
+.footer-hindi {
+  color: #FF9933;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.2rem;
+}
+
+.footer-digital-india {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: #138808;
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────── */

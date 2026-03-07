@@ -206,6 +206,12 @@ export default function Dashboard() {
                 <span className="action-icon">👤</span>
                 <span className="action-label">{t.myProfile}</span>
               </Link>
+              {isGovOrAdmin && (
+                <Link to="/gov-dashboard" className="action-card enroll-action" style={{ background: 'linear-gradient(135deg, #1a237e, #283593)' }}>
+                  <span className="action-icon">🗺️</span>
+                  <span className="action-label">Analytics Dashboard</span>
+                </Link>
+              )}
             </section>
 
             {/* Farmer's Animals */}

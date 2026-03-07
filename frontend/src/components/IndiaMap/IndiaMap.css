@@ -1,0 +1,83 @@
+/* India Map Component Styles */
+.india-map-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.india-map-svg {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* State path animations */
+.state-path {
+  cursor: pointer;
+  transition: fill 0.25s ease, stroke-width 0.2s ease, filter 0.2s ease;
+}
+
+.state-path:hover,
+.state-path.hovered {
+  stroke: #FF6B35;
+  stroke-width: 2.5;
+  filter: brightness(0.85) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.state-group {
+  transition: transform 0.15s ease;
+}
+
+.state-group:hover {
+  transform: scale(1.01);
+  transform-origin: center;
+}
+
+.state-label {
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+}
+
+.map-title {
+  font-size: 12px;
+  font-weight: 700;
+  fill: #555;
+  font-family: 'Noto Sans Devanagari', sans-serif;
+}
+
+/* Tooltip */
+.map-tooltip {
+  position: absolute;
+  background: rgba(30, 30, 50, 0.92);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  animation: tooltipIn 0.15s ease-out;
+}
+
+.map-tooltip strong {
+  font-size: 14px;
+  color: #FF6B35;
+}
+
+.map-tooltip span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+@keyframes tooltipIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

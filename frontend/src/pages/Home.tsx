@@ -44,6 +44,22 @@ export default function Home() {
 
   return (
     <div className="landing">
+      {/* Indian Government Tricolor Top Bar */}
+      <div className="india-tricolor-top">
+        <span className="tri-band saffron" />
+        <span className="tri-band white" />
+        <span className="tri-band green" />
+      </div>
+
+      {/* Government Badge */}
+      <div className="govt-badge-bar">
+        <div className="govt-badge-inner">
+          <img src="/ashoka-emblem.svg" alt="Ashoka Emblem" className="ashoka-small" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <span className="govt-badge-text">भारत सरकार • Government of India</span>
+          <span className="govt-badge-ministry">Ministry of Fisheries, Animal Husbandry & Dairying</span>
+        </div>
+      </div>
+
       {/* Navbar */}
       <nav className="landing-nav">
         <div className="nav-brand">
@@ -218,7 +234,19 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="landing-footer">
-        <p>{t.footer}</p>
+        <div className="footer-tricolor">
+          <span className="tri-band saffron" />
+          <span className="tri-band white" />
+          <span className="tri-band green" />
+        </div>
+        <div className="footer-govt">
+          <img src="/ashoka-emblem.svg" alt="Ashoka Emblem" className="footer-emblem" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <div>
+            <p className="footer-hindi">पशु आधार — राष्ट्रीय पशुधन पहचान मंच</p>
+            <p>{t.footer}</p>
+            <p className="footer-digital-india">Digital India 🇮🇳 Initiative</p>
+          </div>
+        </div>
       </footer>
     </div>
   );

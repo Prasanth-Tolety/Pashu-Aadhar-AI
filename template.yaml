@@ -166,6 +166,8 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_sessions/index/*'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_agents'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_agents/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fraud_scores'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fraud_scores/index/*'
 
   # API Gateway
   PashuAadhaarApi:
@@ -815,6 +817,126 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - enrollment-sessions/handler.ts
+
+  # Analytics Lambda (Government / Admin Dashboard)
+  AnalyticsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-analytics-${Stage}'
+      CodeUri: backend/
+      Handler: analytics/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Analytics API for government dashboard - state-wise data, trends, fraud summary
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        AnalyticsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/summary
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsStates:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/states
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsTrends:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/trends
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsBreeds:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/breeds
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsFraud:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/fraud
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsAgents:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/agents
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsSummaryOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/summary
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsStatesOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/states
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsTrendsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/trends
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsBreedsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/breeds
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsFraudOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/fraud
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsAgentsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/agents
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - analytics/handler.ts
 
   # DynamoDB Table: Access Requests
   AccessRequestsTable:

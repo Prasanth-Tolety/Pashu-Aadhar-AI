@@ -253,3 +253,34 @@ export async function updateSessionMetadata(
   });
   return res.data;
 }
+
+// ─── Analytics (Government / Admin) ──────────────────────────────────
+export async function getAnalyticsSummary(token: string) {
+  const res = await apiClient.get('/analytics/summary', { headers: authHeaders(token) });
+  return res.data;
+}
+
+export async function getAnalyticsStates(token: string) {
+  const res = await apiClient.get('/analytics/states', { headers: authHeaders(token) });
+  return res.data;
+}
+
+export async function getAnalyticsTrends(token: string) {
+  const res = await apiClient.get('/analytics/trends', { headers: authHeaders(token) });
+  return res.data;
+}
+
+export async function getAnalyticsBreeds(token: string) {
+  const res = await apiClient.get('/analytics/breeds', { headers: authHeaders(token) });
+  return res.data;
+}
+
+export async function getAnalyticsFraud(token: string) {
+  const res = await apiClient.get('/analytics/fraud', { headers: authHeaders(token) });
+  return res.data;
+}
+
+export async function getAnalyticsAgents(token: string) {
+  const res = await apiClient.get('/analytics/agents', { headers: authHeaders(token) });
+  return res.data;
+}
