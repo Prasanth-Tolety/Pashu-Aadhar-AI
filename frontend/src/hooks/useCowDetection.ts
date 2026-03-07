@@ -1,5 +1,12 @@
 /**
- * useCowDetection — Stage 1: Cow detection using a custom YOLOv8 ONNX model.
+ * useCowDetection — Stage 1: Cow/livestock detection using ONNX model.
+ *
+ * Supports both YOLOv8 and YOLOv10 output formats:
+ * - YOLOv8: [1, 4+C, N] transposed layout (cx, cy, w, h, class_confs...)
+ * - YOLOv10: [1, N, 6] end-to-end NMS (x1, y1, x2, y2, conf, class_id)
+ *
+ * For COCO models (80 classes), only livestock classes are accepted
+ * (cow=19, sheep=20, horse=21) to avoid false positives from other objects.
  *
  * Uses pre-loaded session from useModelPreloader when available.
  * No longer loads the model itself — relies on preloadModels() being called
@@ -89,11 +96,30 @@ function preprocessFrame(video: HTMLVideoElement): {
   return { tensor, scale, offsetX, offsetY };
 }
 
+// COCO livestock class indices we accept as "cow"
+const LIVESTOCK_CLASSES = new Set([
+  19, // cow
+  20, // sheep
+  21, // horse
+  // Add 17 (cat), 16 (dog) if you want pet support later
+]);
+
 /**
- * Parse YOLOv8 output — supports both single-class and multi-class outputs.
- * Handles output shapes: [1, 5, N] (single-class) or [1, 4+C, N] (multi-class).
+ * Detect if the output is YOLOv10 format.
+ * YOLOv10 end-to-end: [1, N, 6] where each row = [x1, y1, x2, y2, conf, class_id]
+ * YOLOv8 standard:    [1, 4+C, N] where C = classes, N = anchors (8400 typical)
  */
-function parseOutput(
+function isYOLOv10Format(dims: readonly number[]): boolean {
+  // [1, 300, 6] → YOLOv10 (dim[2] is 6 = x1,y1,x2,y2,conf,cls)
+  // [1, 84, 8400] → YOLOv8 (dim[1] = 4+80 classes)
+  return dims.length === 3 && dims[2] <= 7 && dims[1] > 7;
+}
+
+/**
+ * Parse YOLOv10 output: [1, N, 6] → each row is [x1, y1, x2, y2, conf, class_id].
+ * Coordinates are in model input space (letterboxed 640×640).
+ */
+function parseYOLOv10(
   output: Float32Array,
   dims: readonly number[],
   videoWidth: number,
@@ -102,22 +128,79 @@ function parseOutput(
   offsetX: number,
   offsetY: number,
 ): CowDetection[] {
-  // dims might be [1, 5, 8400] or [1, 84, 8400] etc.
-  const numFields = dims.length === 3 ? dims[1] : dims[0];
-  const numDetections = dims.length === 3 ? dims[2] : dims[1];
+  const numDetections = dims[1]; // e.g. 300
+  const stride = dims[2];       // e.g. 6
   const detections: CowDetection[] = [];
 
   for (let i = 0; i < numDetections; i++) {
-    // For single class: fields = [cx, cy, w, h, conf]
-    // For multi class: fields = [cx, cy, w, h, class0_conf, class1_conf, ...]
-    const numClasses = numFields - 4;
+    const base = i * stride;
+    const conf = output[base + 4];
+    const classId = Math.round(output[base + 5]);
+
+    // Filter: only accept livestock classes
+    if (conf < CONFIDENCE_THRESHOLD) continue;
+    if (!LIVESTOCK_CLASSES.has(classId)) continue;
+
+    // YOLOv10 outputs x1,y1,x2,y2 (top-left, bottom-right) in model space
+    const x1 = output[base + 0];
+    const y1 = output[base + 1];
+    const x2 = output[base + 2];
+    const y2 = output[base + 3];
+
+    // Convert from letterboxed model space → original video space
+    const x = (x1 - offsetX) / scale;
+    const y = (y1 - offsetY) / scale;
+    const bw = (x2 - x1) / scale;
+    const bh = (y2 - y1) / scale;
+
+    detections.push({
+      x: Math.max(0, x),
+      y: Math.max(0, y),
+      width: Math.min(bw, videoWidth - Math.max(0, x)),
+      height: Math.min(bh, videoHeight - Math.max(0, y)),
+      confidence: conf,
+    });
+  }
+
+  return nms(detections);
+}
+
+/**
+ * Parse YOLOv8 output — supports both single-class and multi-class outputs.
+ * Handles output shapes: [1, 5, N] (single-class) or [1, 4+C, N] (multi-class).
+ * For multi-class COCO models, only livestock classes are accepted.
+ */
+function parseYOLOv8(
+  output: Float32Array,
+  dims: readonly number[],
+  videoWidth: number,
+  videoHeight: number,
+  scale: number,
+  offsetX: number,
+  offsetY: number,
+): CowDetection[] {
+  const numFields = dims.length === 3 ? dims[1] : dims[0];
+  const numDetections = dims.length === 3 ? dims[2] : dims[1];
+  const numClasses = numFields - 4;
+  const detections: CowDetection[] = [];
+
+  for (let i = 0; i < numDetections; i++) {
     let maxConf = 0;
+    let bestClass = -1;
+
     for (let c = 0; c < numClasses; c++) {
       const conf = output[(4 + c) * numDetections + i];
-      if (conf > maxConf) maxConf = conf;
+      if (conf > maxConf) {
+        maxConf = conf;
+        bestClass = c;
+      }
     }
 
     if (maxConf < CONFIDENCE_THRESHOLD) continue;
+
+    // For multi-class COCO models, only accept livestock classes
+    // For single-class custom cow models (numClasses === 1), accept all
+    if (numClasses > 1 && !LIVESTOCK_CLASSES.has(bestClass)) continue;
 
     const cx = output[0 * numDetections + i];
     const cy = output[1 * numDetections + i];
@@ -139,6 +222,24 @@ function parseOutput(
   }
 
   return nms(detections);
+}
+
+/**
+ * Parse model output — auto-detects YOLOv10 vs YOLOv8 format.
+ */
+function parseOutput(
+  output: Float32Array,
+  dims: readonly number[],
+  videoWidth: number,
+  videoHeight: number,
+  scale: number,
+  offsetX: number,
+  offsetY: number,
+): CowDetection[] {
+  if (isYOLOv10Format(dims)) {
+    return parseYOLOv10(output, dims, videoWidth, videoHeight, scale, offsetX, offsetY);
+  }
+  return parseYOLOv8(output, dims, videoWidth, videoHeight, scale, offsetX, offsetY);
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────
