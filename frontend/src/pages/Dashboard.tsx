@@ -218,6 +218,11 @@ export default function Dashboard() {
                   <div className="animals-grid">
                     {animals.map((animal) => (
                       <Link key={animal.livestock_id} to={`/animals/${animal.livestock_id}`} className="animal-card">
+                        {animal.photo_url && (
+                          <div className="animal-card-photo">
+                            <img src={animal.photo_url} alt={animal.species || 'Animal'} />
+                          </div>
+                        )}
                         <div className="animal-card-header">
                           <span className="animal-id">{animal.livestock_id}</span>
                           <span className="animal-species">{animal.species || '🐄'}</span>

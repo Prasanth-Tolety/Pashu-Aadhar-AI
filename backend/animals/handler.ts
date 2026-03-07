@@ -7,14 +7,17 @@ import {
   PutCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createLogger, buildResponse, buildErrorResponse } from '../shared/utils';
 
 const logger = createLogger('animals');
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
-const ddbClient = DynamoDBDocumentClient.from(
-  new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' })
-);
+const REGION = process.env.AWS_REGION || 'us-east-1';
+const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
+const s3Client = new S3Client({ region: REGION });
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || '';
 
 const ANIMALS_TABLE = 'animals';
 const HEALTH_RECORDS_TABLE = 'health_records';
@@ -119,6 +122,29 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
   }
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+/** Generate a presigned GET URL for an S3 key (1-hour expiry). */
+async function getPresignedReadUrl(key: string): Promise<string> {
+  const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key });
+  return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+}
+
+/** Enrich an animal record with presigned URLs for photo_key and muzzle_key. */
+async function enrichAnimalWithUrls(animal: Record<string, unknown>): Promise<Record<string, unknown>> {
+  try {
+    if (animal.photo_key && typeof animal.photo_key === 'string' && BUCKET_NAME) {
+      animal.photo_url = await getPresignedReadUrl(animal.photo_key as string);
+    }
+    if (animal.muzzle_key && typeof animal.muzzle_key === 'string' && BUCKET_NAME) {
+      animal.muzzle_url = await getPresignedReadUrl(animal.muzzle_key as string);
+    }
+  } catch (err) {
+    logger.warn('Failed to generate presigned URLs for animal', err);
+  }
+  return animal;
+}
+
 // ─── Handlers ────────────────────────────────────────────────────────
 
 async function listAnimalsByOwner(event: APIGatewayProxyEvent) {
@@ -134,7 +160,11 @@ async function listAnimalsByOwner(event: APIGatewayProxyEvent) {
     ExpressionAttributeValues: { ':oid': ownerId },
   }));
 
-  return buildResponse(200, { animals: result.Items || [] }, ALLOWED_ORIGIN);
+  // Enrich each animal with presigned photo URLs
+  const animals = result.Items || [];
+  const enriched = await Promise.all(animals.map((a) => enrichAnimalWithUrls(a as Record<string, unknown>)));
+
+  return buildResponse(200, { animals: enriched }, ALLOWED_ORIGIN);
 }
 
 async function getAnimal(livestockId: string) {
@@ -146,6 +176,9 @@ async function getAnimal(livestockId: string) {
   if (!result.Item) {
     return buildErrorResponse(404, 'NOT_FOUND', `Animal ${livestockId} not found`, ALLOWED_ORIGIN);
   }
+
+  // Enrich with presigned photo URLs
+  const animal = await enrichAnimalWithUrls(result.Item as Record<string, unknown>);
 
   // Also get insurance summary
   let insurance = null;
@@ -163,7 +196,7 @@ async function getAnimal(livestockId: string) {
     // Insurance index may not exist yet — ignore
   }
 
-  return buildResponse(200, { animal: result.Item, insurance }, ALLOWED_ORIGIN);
+  return buildResponse(200, { animal, insurance }, ALLOWED_ORIGIN);
 }
 
 async function updateAnimal(livestockId: string, event: APIGatewayProxyEvent) {
@@ -175,6 +208,7 @@ async function updateAnimal(livestockId: string, event: APIGatewayProxyEvent) {
   const allowedFields = [
     'species', 'breed', 'gender', 'age_months', 'color_pattern',
     'horn_type', 'identifiable_marks', 'village', 'district', 'state',
+    'photo_key',  // cow profile photo (editable), muzzle_key is NOT editable
   ];
 
   const updates: string[] = [];

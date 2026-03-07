@@ -107,6 +107,10 @@ export interface Animal {
   owner_name?: string;
   enrolled_at?: string;
   image_key?: string;
+  photo_key?: string;       // cow profile photo (full frame / cow crop)
+  muzzle_key?: string;      // muzzle ROI (for embeddings, not editable)
+  photo_url?: string;       // presigned URL for photo_key (from backend)
+  muzzle_url?: string;      // presigned URL for muzzle_key (from backend)
   latitude?: number;
   longitude?: number;
   status?: string;

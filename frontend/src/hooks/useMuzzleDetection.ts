@@ -1,12 +1,12 @@
 /**
  * useMuzzleDetection — Stage 2: Muzzle detection within a cow bounding box.
  *
- * Loads `muzzle.onnx` from CDN. Given a cow bounding box from Stage 1,
- * crops the cow region, runs inference, and returns the muzzle bounding box
- * in original video coordinates.
+ * Uses pre-loaded session from useModelPreloader when available.
+ * No longer loads the model itself.
  */
 import { useRef, useState, useCallback, useEffect } from 'react';
 import * as ort from 'onnxruntime-web';
+import { getMuzzleSession, getModelStatus } from './useModelPreloader';
 import type { CowDetection } from './useCowDetection';
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -167,8 +167,9 @@ function parseOutput(
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────
-export function useMuzzleDetection(modelUrl: string) {
+export function useMuzzleDetection(_modelUrl?: string) {
   const sessionRef = useRef<ort.InferenceSession | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [state, setState] = useState<MuzzleDetectionState>({
     isModelLoading: true,
@@ -177,28 +178,28 @@ export function useMuzzleDetection(modelUrl: string) {
     muzzleDetection: null,
   });
 
-  // Load model
+  // Poll for preloaded session from singleton cache
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-        const session = await ort.InferenceSession.create(modelUrl, {
-          executionProviders: ['wasm'],
-          graphOptimizationLevel: 'all',
-        });
-        if (!cancelled) {
-          sessionRef.current = session;
-          setState((s) => ({ ...s, isModelLoading: false, isModelReady: true }));
-        }
-      } catch {
-        if (!cancelled) {
-          setState((s) => ({ ...s, isModelLoading: false, modelError: 'Failed to load muzzle detection model' }));
-        }
+    const cached = getMuzzleSession();
+    if (cached) {
+      sessionRef.current = cached;
+      setState((s) => ({ ...s, isModelLoading: false, isModelReady: true }));
+      return;
+    }
+    pollRef.current = setInterval(() => {
+      const session = getMuzzleSession();
+      const status = getModelStatus();
+      if (session) {
+        sessionRef.current = session;
+        setState((s) => ({ ...s, isModelLoading: false, isModelReady: true }));
+        if (pollRef.current) clearInterval(pollRef.current);
+      } else if (status.muzzleError) {
+        setState((s) => ({ ...s, isModelLoading: false, modelError: status.muzzleError }));
+        if (pollRef.current) clearInterval(pollRef.current);
       }
-    })();
-    return () => { cancelled = true; };
-  }, [modelUrl]);
+    }, 200);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
 
   /**
    * Detect muzzle within a cow bounding box.

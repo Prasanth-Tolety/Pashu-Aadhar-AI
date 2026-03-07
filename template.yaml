@@ -272,6 +272,7 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGIN: !Ref AllowedOrigin
+          S3_BUCKET_NAME: !Ref S3BucketName
       Events:
         ListAnimals:
           Type: Api

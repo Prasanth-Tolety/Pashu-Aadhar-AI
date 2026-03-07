@@ -86,7 +86,7 @@ function laplacianVariance(gray: Uint8ClampedArray, w: number, h: number): numbe
 function checkBlur(video: HTMLVideoElement): string | null {
   const { data, width, height } = getGray(video);
   const variance = laplacianVariance(data, width, height);
-  return variance > 120 ? null : 'Hold phone steady to reduce blur';
+  return variance > 120 ? null : 'Steady — blurry';
 }
 
 /** Check exposure balance. */
@@ -98,8 +98,8 @@ function checkExposure(video: HTMLVideoElement): string | null {
     if (data[i] < 30) dark++;
     if (data[i] > 225) bright++;
   }
-  if (dark / total > 0.4) return 'Improve lighting on cattle face';
-  if (bright / total > 0.4) return 'Reduce brightness — avoid direct sunlight';
+  if (dark / total > 0.4) return 'Too dark';
+  if (bright / total > 0.4) return 'Too bright';
   return null;
 }
 
@@ -108,8 +108,8 @@ function checkDistance(cow: CowDetection, vw: number, vh: number): string | null
   const faceArea = cow.width * cow.height;
   const frameArea = vw * vh;
   const ratio = faceArea / frameArea;
-  if (ratio < 0.08) return 'Move closer to cattle';
-  if (ratio > 0.5) return 'Move slightly away from cattle';
+  if (ratio < 0.08) return 'Move closer';
+  if (ratio > 0.5) return 'Move back';
   return null;
 }
 
@@ -117,8 +117,8 @@ function checkDistance(cow: CowDetection, vw: number, vh: number): string | null
 function checkCentering(cow: CowDetection, vw: number, vh: number): string | null {
   const cx = cow.x + cow.width / 2;
   const cy = cow.y + cow.height / 2;
-  if (Math.abs(cx - vw / 2) > vw * 0.2) return 'Center the cattle face in frame';
-  if (Math.abs(cy - vh / 2) > vh * 0.2) return 'Adjust camera height to center muzzle';
+  if (Math.abs(cx - vw / 2) > vw * 0.2) return 'Center cattle';
+  if (Math.abs(cy - vh / 2) > vh * 0.2) return 'Adjust height';
   return null;
 }
 
@@ -129,7 +129,7 @@ function checkShadow(video: HTMLVideoElement): string | null {
   for (let i = 0; i < data.length; i++) {
     if (data[i] < 40) darkCount++;
   }
-  return darkCount / data.length > 0.35 ? 'Avoid shadow on cattle face' : null;
+  return darkCount / data.length > 0.35 ? 'Avoid shadow' : null;
 }
 
 /** Check inter-frame motion (too much = blurry). */
@@ -142,7 +142,7 @@ function checkMotion(video: HTMLVideoElement): string | null {
     }
     const meanDiff = diff / data.length;
     previousGrayData = data;
-    if (meanDiff > 20) return 'Hold phone steady';
+    if (meanDiff > 20) return 'Hold steady';
   } else {
     previousGrayData = data;
   }
@@ -152,7 +152,7 @@ function checkMotion(video: HTMLVideoElement): string | null {
 /** Check frontal orientation via aspect ratio of the cow box. */
 function checkFrontalOrientation(cow: CowDetection): string | null {
   const ratio = cow.width / cow.height;
-  if (ratio > 1.4) return 'Turn cattle face towards camera';
+  if (ratio > 1.4) return 'Face camera';
   return null;
 }
 
@@ -163,7 +163,7 @@ function checkMuzzleVisibility(video: HTMLVideoElement, cow: CowDetection): stri
   const muzzleW = Math.round(cow.width * 0.5);
   const muzzleH = Math.round(cow.height * 0.45);
 
-  if (muzzleW < 10 || muzzleH < 10) return 'Ensure cattle nose (muzzle) is clearly visible';
+  if (muzzleW < 10 || muzzleH < 10) return 'Show muzzle';
 
   const canvas = document.createElement('canvas');
   canvas.width = muzzleW;
@@ -178,13 +178,13 @@ function checkMuzzleVisibility(video: HTMLVideoElement, cow: CowDetection): stri
     gray[i] = Math.round(0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]);
   }
   const variance = laplacianVariance(gray, muzzleW, muzzleH);
-  return variance < 40 ? 'Ensure cattle nose (muzzle) is clearly visible' : null;
+  return variance < 40 ? 'Show muzzle' : null;
 }
 
 /** Check if face crop is large enough. */
 function checkFaceCrop(cow: CowDetection, vw: number, vh: number): string | null {
   const ratio = (cow.width * cow.height) / (vw * vh);
-  return ratio < 0.15 ? 'Move closer to cattle face' : null;
+  return ratio < 0.15 ? 'Closer to face' : null;
 }
 
 /** Auto-capture stability: approved for STABLE_DURATION_MS continuously. */
@@ -223,7 +223,7 @@ export function analyzeFrame(
   // ── No cow detected ──
   if (!cowDetection) {
     approvalStartTime = null;
-    return { score: 0, approved: false, suggestions: ['Point camera towards cattle face'], autoCapture: false };
+    return { score: 0, approved: false, suggestions: ['Point at cattle'], autoCapture: false };
   }
 
   // Cow detected: +20
@@ -265,7 +265,7 @@ export function analyzeFrame(
   if (muzzleDetection && muzzleDetection.confidence > 0.4) {
     score += 20;
   } else {
-    suggestions.push('Ensure muzzle is visible for capture');
+    suggestions.push('Show muzzle clearly');
   }
 
   // Face crop: +5
@@ -278,7 +278,7 @@ export function analyzeFrame(
   return {
     score,
     approved,
-    suggestions: suggestions.length > 0 ? suggestions : ['Perfect capture!'],
+    suggestions: suggestions.length > 0 ? suggestions : ['✅ Good to capture!'],
     autoCapture,
   };
 }

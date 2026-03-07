@@ -7,6 +7,7 @@ import CameraCapture from '../components/CameraCapture';
 import UploadProgress from '../components/UploadProgress';
 import { getUploadUrl, enroll, updateAnimal } from '../services/api';
 import { uploadToS3 } from '../services/s3';
+import { preloadModels } from '../hooks/useModelPreloader';
 import { EnrollmentState, AnimalFormData } from '../types';
 import '../styles/Enrollment.css';
 
@@ -20,6 +21,7 @@ export default function Enrollment() {
   const [showAnimalForm, setShowAnimalForm] = useState(false);
   const [enrolledId, setEnrolledId] = useState('');
   const [savingForm, setSavingForm] = useState(false);
+  const [cowPhotoFile, setCowPhotoFile] = useState<File | null>(null);
 
   const isFarmer = user?.role === 'farmer';
 
@@ -60,6 +62,11 @@ export default function Enrollment() {
     }
   }, [isFarmer]);
 
+  // Preload AI models as soon as enrollment page mounts (before camera opens)
+  useEffect(() => {
+    preloadModels();
+  }, []);
+
   useEffect(() => {
     return () => {
       if (state.imagePreviewUrl) {
@@ -85,9 +92,10 @@ export default function Enrollment() {
   }, []);
 
   const handleCapture = useCallback(
-    (file: File) => {
+    (muzzleFile: File, cowFile: File) => {
       setShowCamera(false);
-      handleFileSelect(file);
+      setCowPhotoFile(cowFile);
+      handleFileSelect(muzzleFile);
     },
     [handleFileSelect]
   );
@@ -98,25 +106,39 @@ export default function Enrollment() {
     setState((prev) => ({ ...prev, status: 'uploading', uploadProgress: 0, error: null }));
 
     try {
+      // Upload muzzle ROI (primary — used for embeddings)
       const { uploadUrl, imageKey } = await getUploadUrl(
         state.imageFile.name,
         state.imageFile.type
       );
 
       await uploadToS3(uploadUrl, state.imageFile, (progress) => {
-        setState((prev) => ({ ...prev, uploadProgress: progress }));
+        setState((prev) => ({ ...prev, uploadProgress: progress * 0.6 })); // 0-60% for muzzle
       });
+
+      // Upload cow profile photo if available
+      let photoKey: string | undefined;
+      if (cowPhotoFile) {
+        const photoUpload = await getUploadUrl(cowPhotoFile.name, cowPhotoFile.type);
+        await uploadToS3(photoUpload.uploadUrl, cowPhotoFile, (progress) => {
+          setState((prev) => ({ ...prev, uploadProgress: 60 + progress * 0.4 })); // 60-100%
+        });
+        photoKey = photoUpload.imageKey;
+      } else {
+        setState((prev) => ({ ...prev, uploadProgress: 100 }));
+      }
 
       setState((prev) => ({ ...prev, status: 'enrolling' }));
 
-      const enrollData = {
+      const enrollData: Record<string, unknown> = {
         imageKey,
         owner_id: isFarmer ? user?.ownerId || undefined : undefined,
         latitude: location?.lat,
         longitude: location?.lng,
       };
+      if (photoKey) enrollData.photo_key = photoKey;
 
-      const result = await enroll(enrollData, idToken);
+      const result = await enroll(enrollData as never, idToken);
 
       setState((prev) => ({ ...prev, status: 'success', result }));
 

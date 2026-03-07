@@ -1,12 +1,13 @@
 /**
  * useCowDetection — Stage 1: Cow detection using a custom YOLOv8 ONNX model.
  *
- * Loads `cow.onnx` from CDN and runs inference on each video frame to detect
- * cattle bounding boxes. This is a dedicated cow detector (single-class) trained
- * specifically for livestock.
+ * Uses pre-loaded session from useModelPreloader when available.
+ * No longer loads the model itself — relies on preloadModels() being called
+ * from Enrollment page on mount so models are warm before camera opens.
  */
 import { useRef, useState, useCallback, useEffect } from 'react';
 import * as ort from 'onnxruntime-web';
+import { getCowSession, getModelStatus } from './useModelPreloader';
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface CowDetection {
@@ -141,9 +142,10 @@ function parseOutput(
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────
-export function useCowDetection(modelUrl: string) {
+export function useCowDetection(_modelUrl?: string) {
   const sessionRef = useRef<ort.InferenceSession | null>(null);
   const animRef = useRef<number>(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [state, setState] = useState<CowDetectionState>({
     isModelLoading: true,
@@ -153,28 +155,28 @@ export function useCowDetection(modelUrl: string) {
     bestDetection: null,
   });
 
-  // Load model
+  // Poll for preloaded session from singleton cache (no self-loading)
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-        const session = await ort.InferenceSession.create(modelUrl, {
-          executionProviders: ['wasm'],
-          graphOptimizationLevel: 'all',
-        });
-        if (!cancelled) {
-          sessionRef.current = session;
-          setState((s) => ({ ...s, isModelLoading: false, isModelReady: true }));
-        }
-      } catch {
-        if (!cancelled) {
-          setState((s) => ({ ...s, isModelLoading: false, modelError: 'Failed to load cow detection model' }));
-        }
+    const cached = getCowSession();
+    if (cached) {
+      sessionRef.current = cached;
+      setState((s) => ({ ...s, isModelLoading: false, isModelReady: true }));
+      return;
+    }
+    pollRef.current = setInterval(() => {
+      const session = getCowSession();
+      const status = getModelStatus();
+      if (session) {
+        sessionRef.current = session;
+        setState((s) => ({ ...s, isModelLoading: false, isModelReady: true }));
+        if (pollRef.current) clearInterval(pollRef.current);
+      } else if (status.cowError) {
+        setState((s) => ({ ...s, isModelLoading: false, modelError: status.cowError }));
+        if (pollRef.current) clearInterval(pollRef.current);
       }
-    })();
-    return () => { cancelled = true; };
-  }, [modelUrl]);
+    }, 200);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
 
   const runDetection = useCallback(async (video: HTMLVideoElement) => {
     const session = sessionRef.current;
@@ -222,6 +224,7 @@ export function useCowDetection(modelUrl: string) {
 
   const stopDetection = useCallback(() => {
     cancelAnimationFrame(animRef.current);
+    animRef.current = 0;
   }, []);
 
   return { ...state, startDetection, stopDetection };

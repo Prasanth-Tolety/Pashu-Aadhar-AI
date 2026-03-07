@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ROLE_CONFIG, UserRole } from '../types';
+import { getUploadUrl, updateAnimal as apiUpdateAnimal } from '../services/api';
+import { uploadToS3 } from '../services/s3';
 import axios from 'axios';
 import '../styles/AnimalDetail.css';
 
@@ -23,6 +25,10 @@ interface Animal {
   owner_id?: string;
   enrolled_at?: string;
   image_key?: string;
+  photo_key?: string;
+  muzzle_key?: string;
+  photo_url?: string;
+  muzzle_url?: string;
   latitude?: number;
   longitude?: number;
   status?: string;
@@ -188,6 +194,10 @@ export default function AnimalDetail() {
     notes: '',
   });
 
+  // Photo upload
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
   const headers = { Authorization: idToken || '' };
 
   useEffect(() => {
@@ -280,6 +290,23 @@ export default function AnimalDetail() {
     }
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !idToken) return;
+    setPhotoUploading(true);
+    try {
+      const { uploadUrl, imageKey } = await getUploadUrl(file.name, file.type);
+      await uploadToS3(uploadUrl, file, () => {});
+      await apiUpdateAnimal(id!, { photo_key: imageKey } as never, idToken);
+      // Refresh animal data to get new presigned URL
+      await fetchAnimalData();
+    } catch {
+      alert('Failed to update photo');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="detail-container">
@@ -355,6 +382,36 @@ export default function AnimalDetail() {
       <div className="tab-content">
         {activeTab === 'details' && perms.canViewDetails && (
           <div className="details-tab">
+            {/* Profile photo & muzzle ROI */}
+            <div className="animal-images-section">
+              <div className="animal-photo-box">
+                {animal.photo_url ? (
+                  <img src={animal.photo_url} alt="Animal profile" className="animal-profile-img" />
+                ) : (
+                  <div className="animal-photo-placeholder">🐄<span>No photo</span></div>
+                )}
+                {perms.canEditDetails && (
+                  <label className="photo-change-btn">
+                    📷 {photoUploading ? 'Uploading...' : 'Change Photo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={photoInputRef}
+                      onChange={handlePhotoChange}
+                      style={{ display: 'none' }}
+                      disabled={photoUploading}
+                    />
+                  </label>
+                )}
+              </div>
+              {animal.muzzle_url && (
+                <div className="animal-muzzle-box">
+                  <img src={animal.muzzle_url} alt="Muzzle ROI" className="animal-muzzle-img" />
+                  <span className="muzzle-readonly-badge">👃 Muzzle ROI (read-only)</span>
+                </div>
+              )}
+            </div>
+
             {perms.canEditDetails && !editing && (
               <button className="edit-details-btn" onClick={() => setEditing(true)}>✏️ {t.editDetails}</button>
             )}

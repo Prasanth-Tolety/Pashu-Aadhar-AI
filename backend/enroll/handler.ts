@@ -154,9 +154,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     return buildErrorResponse(400, 'MISSING_BODY', 'Request body is required', ALLOWED_ORIGIN);
   }
 
-  let body: { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number };
+  let body: { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number; photo_key?: string };
   try {
-    body = JSON.parse(event.body) as { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number };
+    body = JSON.parse(event.body) as { imageKey?: unknown; owner_id?: string; latitude?: number; longitude?: number; photo_key?: string };
   } catch {
     return buildErrorResponse(400, 'INVALID_JSON', 'Invalid JSON in request body', ALLOWED_ORIGIN);
   }
@@ -216,6 +216,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const animalItem: Record<string, unknown> = {
       livestock_id: newLivestockId,
       image_key: imageKey,
+      muzzle_key: imageKey,        // muzzle ROI used for embedding
       enrolled_at: enrolledAt,
       species: 'cattle',
       status: 'active',
@@ -224,6 +225,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     if (body.owner_id) animalItem.owner_id = body.owner_id;
     if (typeof body.latitude === 'number') animalItem.latitude = body.latitude;
     if (typeof body.longitude === 'number') animalItem.longitude = body.longitude;
+    if (body.photo_key) animalItem.photo_key = body.photo_key;  // cow profile photo
 
     try {
       await ddbClient.send(new PutCommand({

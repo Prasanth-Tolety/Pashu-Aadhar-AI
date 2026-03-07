@@ -569,3 +569,81 @@
     flex-direction: column;
   }
 }
+
+/* ─── Animal images (profile photo + muzzle ROI) ──────────── */
+.animal-images-section {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.animal-photo-box,
+.animal-muzzle-box {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5f7fa;
+  border: 2px solid #e2e8f0;
+  text-align: center;
+}
+
+.animal-photo-box {
+  width: 200px;
+  min-height: 160px;
+}
+
+.animal-muzzle-box {
+  width: 160px;
+  min-height: 130px;
+}
+
+.animal-profile-img,
+.animal-muzzle-img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.animal-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  font-size: 2.5rem;
+  color: #cbd5e1;
+}
+
+.animal-photo-placeholder span {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.photo-change-btn {
+  display: block;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667eea;
+  cursor: pointer;
+  background: #f0f4ff;
+  transition: background 0.2s;
+}
+
+.photo-change-btn:hover {
+  background: #e0e7ff;
+}
+
+.muzzle-readonly-badge {
+  display: block;
+  text-align: center;
+  padding: 5px 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+}

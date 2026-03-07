@@ -1,11 +1,13 @@
 /**
- * muzzleCropper — Extracts the muzzle ROI from a video frame and returns it as a File.
+ * muzzleCropper — Extracts muzzle ROI + full cow frame from video.
  *
  * Used after muzzle detection to crop only the muzzle region (with padding)
  * and send it to S3 for embedding generation.
+ * Also captures the full video frame as the cow "profile photo."
  */
 
 import type { MuzzleDetection } from '../hooks/useMuzzleDetection';
+import type { CowDetection } from '../hooks/useCowDetection';
 
 const PADDING_RATIO = 0.15;   // 15% padding around the muzzle box
 const MIN_OUTPUT_SIZE = 224;   // minimum output dimension for embeddings
@@ -156,4 +158,53 @@ export function getMuzzleCropPreview(
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(video, x, y, cropW, cropH, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+/**
+ * Capture the cow region (with generous padding) from the video as a "profile photo" File.
+ * If no cowBox is given, captures the full frame.
+ */
+export function captureCowPhoto(
+  video: HTMLVideoElement,
+  cowBox?: CowDetection | null,
+  filename = `cow-${Date.now()}.jpg`,
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    let x = 0, y = 0, w = vw, h = vh;
+
+    if (cowBox) {
+      // 25% padding around the cow for a nice profile photo
+      const padX = cowBox.width * 0.25;
+      const padY = cowBox.height * 0.25;
+      x = Math.max(0, Math.round(cowBox.x - padX));
+      y = Math.max(0, Math.round(cowBox.y - padY));
+      const x2 = Math.min(vw, Math.round(cowBox.x + cowBox.width + padX));
+      const y2 = Math.min(vh, Math.round(cowBox.y + cowBox.height + padY));
+      w = x2 - x;
+      h = y2 - y;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { reject(new Error('Canvas ctx failed')); return; }
+
+    ctx.drawImage(video, x, y, w, h, 0, 0, w, h);
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(new File([blob], filename, { type: 'image/jpeg' }));
+        } else {
+          reject(new Error('Failed to create cow photo blob'));
+        }
+      },
+      'image/jpeg',
+      0.90,
+    );
+  });
 }

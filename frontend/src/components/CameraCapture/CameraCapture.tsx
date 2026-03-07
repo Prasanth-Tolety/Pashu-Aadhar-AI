@@ -2,22 +2,17 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useCowDetection, type CowDetection } from '../../hooks/useCowDetection';
 import { useMuzzleDetection, type MuzzleDetection } from '../../hooks/useMuzzleDetection';
 import { analyzeFrame, resetAssistant, type QualityResult } from '../../utils/captureAssistant';
-import { cropMuzzleFromVideo, getMuzzleCropPreview } from '../../utils/muzzleCropper';
+import { cropMuzzleFromVideo, getMuzzleCropPreview, captureCowPhoto } from '../../utils/muzzleCropper';
 import { useLanguage } from '../../context/LanguageContext';
 import './CameraCapture.css';
 
-// ─── Model URLs ──────────────────────────────────────────────────────
-const CDN = import.meta.env.VITE_CDN_URL || '';
-const COW_MODEL_URL = `${CDN}/models/cow.onnx`;
-const MUZZLE_MODEL_URL = `${CDN}/models/muzzle.onnx`;
-
 // ─── Timing constants ────────────────────────────────────────────────
-const MUZZLE_STABLE_MS = 1000;   // muzzle must be detected 1s continuously to "lock"
-const CAPTURE_ANIM_MS = 1800;    // slow zoom-in + highlight animation
-const OVERLAY_FPS = 20;          // overlay redraw rate
+const MUZZLE_STABLE_MS = 1000;
+const CAPTURE_ANIM_MS = 1800;
+const OVERLAY_FPS = 20;
 
 interface CameraCaptureProps {
-  onCapture: (file: File) => void;
+  onCapture: (muzzleFile: File, cowFile: File) => void;
   onClose: () => void;
 }
 
@@ -27,9 +22,9 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   const streamRef = useRef<MediaStream | null>(null);
   const { t } = useLanguage();
 
-  // ─── Detection hooks (both run simultaneously) ─────────────────────
-  const cow = useCowDetection(COW_MODEL_URL);
-  const muzzleDet = useMuzzleDetection(MUZZLE_MODEL_URL);
+  // ─── Detection hooks (use preloaded sessions from singleton) ────────
+  const cow = useCowDetection();
+  const muzzleDet = useMuzzleDetection();
 
   // ─── UI state ──────────────────────────────────────────────────────
   const [isReady, setIsReady] = useState(false);
@@ -38,9 +33,11 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   const [quality, setQuality] = useState<QualityResult | null>(null);
   const [muzzlePreview, setMuzzlePreview] = useState<string | null>(null);
   const [muzzleFile, setMuzzleFile] = useState<File | null>(null);
-  const [muzzleLocked, setMuzzleLocked] = useState(false);  // muzzle stable for 1s
-  const [isCapturing, setIsCapturing] = useState(false);     // capture animation running
-  const [isPreviewing, setIsPreviewing] = useState(false);   // showing preview screen
+  const [cowFile, setCowFile] = useState<File | null>(null);
+  const [muzzleLocked, setMuzzleLocked] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [toasts, setToasts] = useState<string[]>([]);
 
   // ─── Refs for non-render state ─────────────────────────────────────
   const muzzleStableStartRef = useRef<number | null>(null);
@@ -80,21 +77,28 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
     };
   }, [facingMode, startCamera]);
 
-  // ─── Full reset (close & reopen / retake / flip) ───────────────────
+  // ─── Full reset (retake / flip camera) ──────────────────────────────
   const fullReset = useCallback(() => {
+    // Cancel overlay rAF first to prevent race conditions
+    cancelAnimationFrame(overlayRafRef.current);
+    overlayRafRef.current = 0;
+    cow.stopDetection();
+
     setMuzzleLocked(false);
     setIsCapturing(false);
     setIsPreviewing(false);
     setMuzzlePreview(null);
     setMuzzleFile(null);
+    setCowFile(null);
     setQuality(null);
+    setToasts([]);
     muzzleStableStartRef.current = null;
     lockedMuzzleRef.current = null;
     lastCowBoxRef.current = null;
     capturingRef.current = false;
     resetAssistant();
     muzzleDet.clearMuzzle();
-  }, [muzzleDet]);
+  }, [muzzleDet, cow]);
 
   // ─── Start cow detection loop when ready ───────────────────────────
   useEffect(() => {
@@ -198,6 +202,8 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
       try {
         q = analyzeFrame(video, cowDet, muzzle);
         setQuality(q);
+        // Update floating toasts — only show active suggestions, auto-dismiss resolved ones
+        setToasts(q.suggestions.filter(s => s !== '✅ Good to capture!').slice(0, 3));
       } catch {
         // quality analysis failed, non-fatal
       }
@@ -383,22 +389,26 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        // Animation done → crop and show preview
+        // Animation done → crop muzzle + capture cow photo, then show preview
         capturingRef.current = false;
         setIsCapturing(false);
         (async () => {
           try {
             const preview = getMuzzleCropPreview(video, snapshotMuzzle);
-            const file = await cropMuzzleFromVideo(video, snapshotMuzzle);
+            const mFile = await cropMuzzleFromVideo(video, snapshotMuzzle);
+            const cFile = await captureCowPhoto(video, cow.bestDetection);
             setMuzzlePreview(preview);
-            setMuzzleFile(file);
+            setMuzzleFile(mFile);
+            setCowFile(cFile);
             setIsPreviewing(true);
-            // Stop detection while previewing
+            setToasts([]);
             cow.stopDetection();
           } catch {
-            // Crop failed — just go back to detecting, don't crash
             fullReset();
-            if (videoRef.current && bothReady) cow.startDetection(videoRef.current);
+            // Restart detection after failed crop
+            setTimeout(() => {
+              if (videoRef.current && bothReady) cow.startDetection(videoRef.current);
+            }, 100);
           }
         })();
       }
@@ -425,16 +435,17 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   }, [muzzleDet.muzzleDetection, cow.bestDetection, doCapture]);
 
   const handleAcceptCapture = useCallback(() => {
-    if (muzzleFile) {
-      onCapture(muzzleFile);
+    if (muzzleFile && cowFile) {
+      onCapture(muzzleFile, cowFile);
     }
-  }, [muzzleFile, onCapture]);
+  }, [muzzleFile, cowFile, onCapture]);
 
   const handleRetake = useCallback(() => {
     fullReset();
-    if (videoRef.current && bothReady) cow.startDetection(videoRef.current);
+    // Don't restart detection here — the useEffect watching isPreviewing handles it.
+    // fullReset() sets isPreviewing=false which triggers the cow detection useEffect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bothReady, fullReset]);
+  }, [fullReset]);
 
   const toggleCamera = useCallback(() => {
     fullReset();
@@ -506,6 +517,15 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
               <video ref={videoRef} autoPlay playsInline muted className="camera-video" />
               <canvas ref={overlayRef} className="camera-overlay-canvas" />
 
+              {/* Floating suggestion toasts — top-right, auto-dismiss */}
+              {toasts.length > 0 && !isCapturing && (
+                <div className="floating-toasts">
+                  {toasts.map((msg, i) => (
+                    <div key={`${msg}-${i}`} className="toast-item">💡 {msg}</div>
+                  ))}
+                </div>
+              )}
+
               {/* Pipeline stage indicators */}
               <div className="pipeline-stages">
                 <div className={`pipeline-dot ${hasCow ? 'active' : ''}`}>
@@ -537,14 +557,6 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
                 {muzzleLocked ? '📸 Capture Muzzle' : cow.bestDetection ? '📸 Capture' : (t.captureBtn || 'Capture')}
               </button>
             </div>
-
-            {quality && quality.suggestions.length > 0 && hasCow && !isCapturing && (
-              <div className="quality-suggestions">
-                {quality.suggestions.slice(0, 2).map((s, i) => (
-                  <div key={i} className="quality-suggestion-item">💡 {s}</div>
-                ))}
-              </div>
-            )}
 
             <p className="camera-hint">
               {muzzleLocked
