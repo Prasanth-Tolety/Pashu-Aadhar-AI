@@ -115,11 +115,15 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/recordings/*'
               - Effect: Allow
                 Action:
                   - s3:PutObject
-                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/recordings/*'
               - Effect: Allow
                 Action:
                   - sagemaker:InvokeEndpoint

@@ -246,6 +246,7 @@ function parseOutput(
 export function useCowDetection(_modelUrl?: string) {
   const sessionRef = useRef<ort.InferenceSession | null>(null);
   const animRef = useRef<number>(0);
+  const busyRef = useRef<boolean>(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [state, setState] = useState<CowDetectionState>({
@@ -282,6 +283,8 @@ export function useCowDetection(_modelUrl?: string) {
   const runDetection = useCallback(async (video: HTMLVideoElement) => {
     const session = sessionRef.current;
     if (!session || video.readyState < 2) return;
+    if (busyRef.current) return; // skip if previous inference still running
+    busyRef.current = true;
 
     try {
       const { tensor, scale, offsetX, offsetY } = preprocessFrame(video);
@@ -305,20 +308,29 @@ export function useCowDetection(_modelUrl?: string) {
       setState((s) => ({ ...s, detections: dets, bestDetection: best }));
     } catch {
       // silently skip frame
+    } finally {
+      busyRef.current = false;
     }
   }, []);
 
   const startDetection = useCallback((video: HTMLVideoElement) => {
+    // Cancel any existing loop first
+    if (animRef.current) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = 0;
+    }
+    busyRef.current = false;
+
     let lastTime = 0;
-    const TARGET_FPS = 15; // run detection at ~15 fps to save CPU
+    const TARGET_FPS = 12; // run detection at ~12 fps to avoid stacking
     const interval = 1000 / TARGET_FPS;
 
     const loop = (timestamp: number) => {
+      animRef.current = requestAnimationFrame(loop);
       if (timestamp - lastTime >= interval) {
         lastTime = timestamp;
         runDetection(video);
       }
-      animRef.current = requestAnimationFrame(loop);
     };
     animRef.current = requestAnimationFrame(loop);
   }, [runDetection]);
@@ -328,5 +340,5 @@ export function useCowDetection(_modelUrl?: string) {
     animRef.current = 0;
   }, []);
 
-  return { ...state, startDetection, stopDetection };
+  return { ...state, startDetection, stopDetection, runDetection };
 }

@@ -62,7 +62,9 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
   try {
     const now = new Date();
     const timestamp = now.toISOString().replace(/[:.]/g, '-');
-    const imageKey = `uploads/${timestamp}-${fileName.replace(/\s+/g, '_')}`;
+    const isVideo = contentType.startsWith('video/');
+    const prefix = isVideo ? 'recordings' : 'uploads';
+    const imageKey = `${prefix}/${timestamp}-${fileName.replace(/\s+/g, '_')}`;
 
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,

@@ -59,12 +59,15 @@ export function validateFileName(fileName: unknown): fileName is string {
   if (typeof fileName !== 'string' || fileName.trim().length === 0) {
     return false;
   }
-  const safeNamePattern = /^[\w\-. ]+\.(jpg|jpeg|png|webp|heic)$/i;
+  const safeNamePattern = /^[\w\-. ]+\.(jpg|jpeg|png|webp|heic|webm|mp4)$/i;
   return safeNamePattern.test(fileName) && fileName.length <= 255;
 }
 
 export function validateContentType(contentType: unknown): contentType is string {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+  const allowed = [
+    'image/jpeg', 'image/png', 'image/webp', 'image/heic',
+    'video/webm', 'video/mp4',
+  ];
   return typeof contentType === 'string' && allowed.includes(contentType);
 }
 

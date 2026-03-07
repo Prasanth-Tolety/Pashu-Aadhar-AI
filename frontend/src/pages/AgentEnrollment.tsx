@@ -15,8 +15,7 @@ import {
 } from '../services/api';
 import { uploadToS3 } from '../services/s3';
 import { preloadModels } from '../hooks/useModelPreloader';
-import CameraCapture from '../components/CameraCapture';
-import AgentStepCapture from '../components/AgentStepCapture';
+import AgentLiveCapture, { type CaptureResult } from '../components/AgentLiveCapture';
 import enrollmentConfig from '../config/enrollmentConfig.json';
 import {
   FarmerEnrollmentRequest,
@@ -65,8 +64,7 @@ export default function AgentEnrollment() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [stepUploading, setStepUploading] = useState(false);
-  const [showCapture, setShowCapture] = useState(false);
-  const [captureMode, setCaptureMode] = useState<'cow' | 'muzzle' | 'texture' | 'selfie'>('cow');
+  const [showLiveCapture, setShowLiveCapture] = useState(false);
   const [completedImages, setCompletedImages] = useState<Record<string, string>>({});
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ livestock_id: string; status: string } | null>(null);
@@ -196,66 +194,67 @@ export default function AgentEnrollment() {
     }
   }, [idToken, scheduledDate, agentNotes]);
 
-  // ─── Handle step capture (cow/muzzle from CameraCapture, texture/selfie direct) ─
-  const handleStepCapture = useCallback(async (file: File, step: SessionStep) => {
+  // ─── Handle confirmed submission from AgentLiveCapture preview ────
+  // Images are held in memory until the agent confirms in the preview screen.
+  // Only then do we upload to S3 — optimal storage, nothing stored if discarded.
+  const handleLiveSubmit = useCallback(async (results: CaptureResult[], videoFile: File | null) => {
     if (!idToken || !activeSession) return;
 
+    setShowLiveCapture(false);
     setStepUploading(true);
     setError('');
 
     try {
-      // Upload to S3
-      const { uploadUrl, imageKey } = await getUploadUrl(file.name, file.type);
-      await uploadToS3(uploadUrl, file, () => { /* progress */ });
+      const uploadedImages: Record<string, string> = {};
 
-      // Get current location
-      let location: { latitude: number; longitude: number; accuracy: number } | undefined;
-      if (locationTrailRef.current.length > 0) {
-        const last = locationTrailRef.current[locationTrailRef.current.length - 1];
-        location = { latitude: last.latitude, longitude: last.longitude, accuracy: last.accuracy };
+      // Upload each captured image to S3
+      for (const result of results) {
+        try {
+          const { uploadUrl, imageKey } = await getUploadUrl(result.file.name, result.file.type);
+          await uploadToS3(uploadUrl, result.file, () => { /* progress */ });
+
+          // Get current location
+          let location: { latitude: number; longitude: number; accuracy: number } | undefined;
+          if (locationTrailRef.current.length > 0) {
+            const last = locationTrailRef.current[locationTrailRef.current.length - 1];
+            location = { latitude: last.latitude, longitude: last.longitude, accuracy: last.accuracy };
+          }
+
+          // Complete the step in backend
+          await completeSessionStep(activeSession.session_id, {
+            step: result.step,
+            image_key: imageKey,
+            location,
+          }, idToken);
+
+          uploadedImages[result.step] = imageKey;
+          console.log(`[AgentEnrollment] Uploaded ${result.step}:`, imageKey);
+        } catch (err) {
+          console.error(`[AgentEnrollment] Failed to upload ${result.step}:`, err);
+        }
       }
 
-      // Complete the step in backend
-      const result = await completeSessionStep(activeSession.session_id, {
-        step,
-        image_key: imageKey,
-        location,
-      }, idToken);
-
-      // Update local state
-      setCompletedImages((prev) => ({ ...prev, [step]: imageKey }));
-
-      if (result.next_step) {
-        setCurrentStep(result.next_step as SessionStep);
+      // Upload video recording if available
+      if (videoFile) {
+        try {
+          console.log('[AgentEnrollment] Uploading recording:', videoFile.name, `${(videoFile.size / 1024 / 1024).toFixed(1)}MB`);
+          const { uploadUrl, imageKey } = await getUploadUrl(videoFile.name, videoFile.type);
+          await uploadToS3(uploadUrl, videoFile, () => { /* progress */ });
+          await updateSessionMetadata(activeSession.session_id, { video_key: imageKey }, idToken);
+          console.log('[AgentEnrollment] Recording uploaded, key:', imageKey);
+        } catch (err) {
+          console.error('[AgentEnrollment] Failed to upload recording:', err);
+          // Non-fatal
+        }
       }
 
-      setShowCapture(false);
+      setCompletedImages(uploadedImages);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to upload image');
+      setError(err instanceof Error ? err.message : 'Failed to upload images');
     } finally {
       setStepUploading(false);
     }
   }, [idToken, activeSession]);
-
-  // Handle CameraCapture output (gives muzzle + cow files)
-  const handleCameraCapture = useCallback((muzzleFile: File, cowFile: File) => {
-    setShowCapture(false);
-    if (captureMode === 'cow') {
-      handleStepCapture(cowFile, 'cow_detection');
-    } else if (captureMode === 'muzzle') {
-      handleStepCapture(muzzleFile, 'muzzle_detection');
-    }
-  }, [captureMode, handleStepCapture]);
-
-  // Handle simple photo capture (body texture / selfie)
-  const handleSimpleCapture = useCallback((file: File) => {
-    setShowCapture(false);
-    if (captureMode === 'texture') {
-      handleStepCapture(file, 'body_texture');
-    } else if (captureMode === 'selfie') {
-      handleStepCapture(file, 'agent_selfie');
-    }
-  }, [captureMode, handleStepCapture]);
 
   // ─── Complete the session + run enrollment ──────────────────────
   const handleCompleteSession = useCallback(async () => {
@@ -318,28 +317,6 @@ export default function AgentEnrollment() {
     }
   }, [idToken, activeSession, completedImages]);
 
-  // ─── Open capture for a specific step ───────────────────────────
-  const openStepCapture = (step: SessionStep) => {
-    switch (step) {
-      case 'cow_detection':
-        setCaptureMode('cow');
-        setShowCapture(true);
-        break;
-      case 'muzzle_detection':
-        setCaptureMode('muzzle');
-        setShowCapture(true);
-        break;
-      case 'body_texture':
-        setCaptureMode('texture');
-        setShowCapture(true);
-        break;
-      case 'agent_selfie':
-        setCaptureMode('selfie');
-        setShowCapture(true);
-        break;
-    }
-  };
-
   // Check if all required steps are done
   const requiredSteps = STEP_CONFIG.filter((s) => s.required).map((s) => s.id);
   const allRequiredDone = requiredSteps.every((s) => completedImages[s]);
@@ -377,7 +354,17 @@ export default function AgentEnrollment() {
     );
   }
 
-  // ─── RENDER: Active session — step-by-step capture ──────────────
+  // ─── RENDER: Live capture overlay (continuous camera) ───────────
+  if (showLiveCapture && activeSession) {
+    return (
+      <AgentLiveCapture
+        onSubmit={handleLiveSubmit}
+        onClose={() => setShowLiveCapture(false)}
+      />
+    );
+  }
+
+  // ─── RENDER: Active session — step overview + launch capture ────
   if (activeSession) {
     return (
       <div className="page enrollment-page">
@@ -390,7 +377,7 @@ export default function AgentEnrollment() {
 
           {error && <div className="enrollment-error"><span>⚠️</span><p>{error}</p></div>}
 
-          {/* Step progress */}
+          {/* Step progress overview */}
           <div className="session-steps">
             {STEP_CONFIG.map((step, idx) => {
               const isDone = !!completedImages[step.id];
@@ -409,41 +396,25 @@ export default function AgentEnrollment() {
                     {!step.required && <span className="step-optional">(optional)</span>}
                   </div>
                   <p className="step-desc">{step.description}</p>
-
-                  {isCurrent && !isDone && (
-                    <button
-                      className="btn btn-primary step-capture-btn"
-                      onClick={() => openStepCapture(step.id as SessionStep)}
-                      disabled={stepUploading}
-                    >
-                      {stepUploading ? '⏳ Uploading...' : `📸 Capture ${step.label}`}
-                    </button>
-                  )}
-
-                  {isCurrent && !isDone && !step.required && (
-                    <button
-                      className="btn btn-outline step-skip-btn"
-                      onClick={() => {
-                        // Skip optional step
-                        const stepOrder = STEP_CONFIG.map((s) => s.id);
-                        const nextIdx = stepOrder.indexOf(step.id) + 1;
-                        if (nextIdx < stepOrder.length) {
-                          setCurrentStep(stepOrder[nextIdx] as SessionStep);
-                        }
-                      }}
-                      disabled={stepUploading}
-                    >
-                      Skip →
-                    </button>
-                  )}
-
                   {isDone && completedImages[step.id] && (
-                    <p className="step-uploaded-key">📁 {completedImages[step.id]}</p>
+                    <p className="step-uploaded-key">📁 Captured</p>
                   )}
                 </div>
               );
             })}
           </div>
+
+          {/* Launch live capture button */}
+          {!allRequiredDone && (
+            <button
+              className="btn btn-primary btn-full session-complete-btn"
+              onClick={() => setShowLiveCapture(true)}
+              disabled={stepUploading}
+              style={{ marginTop: '1rem' }}
+            >
+              {stepUploading ? '⏳ Uploading...' : '� Start Live Capture'}
+            </button>
+          )}
 
           {/* Complete session button */}
           {allRequiredDone && (
@@ -465,35 +436,12 @@ export default function AgentEnrollment() {
                 📍 Location: {enrollmentConfig.features.location_tracking.enabled ? 'Tracking' : 'Off'}
                 {locationTrailRef.current.length > 0 && ` (${locationTrailRef.current.length} points)`}
               </span>
-              <span className={`feature-dot ${enrollmentConfig.features.video_recording.enabled ? 'active' : ''}`}>
-                📹 Video: {enrollmentConfig.features.video_recording.enabled ? 'Recording' : 'Placeholder'}
-              </span>
-              <span className={`feature-dot ${enrollmentConfig.features.microphone_recording.enabled ? 'active' : ''}`}>
-                🎙️ Audio: {enrollmentConfig.features.microphone_recording.enabled ? 'Recording' : 'Placeholder'}
-              </span>
               <span className={`feature-dot ${enrollmentConfig.features.device_metadata.enabled ? 'active' : ''}`}>
                 📱 Device: {enrollmentConfig.features.device_metadata.enabled ? 'Captured' : 'Off'}
               </span>
             </div>
           </div>
         </div>
-
-        {/* Camera overlays for AI-assisted steps */}
-        {showCapture && (captureMode === 'cow' || captureMode === 'muzzle') && (
-          <CameraCapture
-            onCapture={handleCameraCapture}
-            onClose={() => setShowCapture(false)}
-          />
-        )}
-
-        {/* Simple capture for texture / selfie */}
-        {showCapture && (captureMode === 'texture' || captureMode === 'selfie') && (
-          <AgentStepCapture
-            mode={captureMode}
-            onCapture={handleSimpleCapture}
-            onClose={() => setShowCapture(false)}
-          />
-        )}
       </div>
     );
   }

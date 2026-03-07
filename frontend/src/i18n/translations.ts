@@ -436,7 +436,7 @@ const en: Translations = {
   loadingAnimals: 'Loading your animals...',
   noAnimalsYet: 'No animals enrolled yet.',
   enrollFirst: 'Enroll your first animal →',
-  enrollNewAnimal: 'Enroll New Animal',
+  enrollNewAnimal: 'Request New Enroll',
   myProfile: 'My Profile',
   animalsICanAccess: 'Animals I Can Access',
   requestAnimalAccess: 'Request Animal Access',

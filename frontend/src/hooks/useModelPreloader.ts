@@ -41,35 +41,38 @@ async function loadModel(url: string): Promise<ort.InferenceSession> {
 }
 
 /**
- * Start loading both models. Safe to call multiple times — only loads once.
+ * Start loading both models IN PARALLEL. Safe to call multiple times — only loads once.
  */
 export function preloadModels(): Promise<void> {
   if (preloadPromise) return preloadPromise;
 
   preloadPromise = (async () => {
-    // Load cow model
+    const tasks: Promise<void>[] = [];
+
+    // Load cow model (in parallel)
     if (!cache.cow && !cache.cowLoading) {
       cache.cowLoading = true;
-      try {
-        cache.cow = await loadModel(COW_MODEL_URL);
-      } catch {
-        cache.cowError = 'Failed to load cow model';
-      } finally {
-        cache.cowLoading = false;
-      }
+      tasks.push(
+        loadModel(COW_MODEL_URL)
+          .then((session) => { cache.cow = session; console.log('[ModelPreloader] ✅ Cow model ready'); })
+          .catch(() => { cache.cowError = 'Failed to load cow model'; })
+          .finally(() => { cache.cowLoading = false; })
+      );
     }
 
-    // Load muzzle model
+    // Load muzzle model (in parallel)
     if (!cache.muzzle && !cache.muzzleLoading) {
       cache.muzzleLoading = true;
-      try {
-        cache.muzzle = await loadModel(MUZZLE_MODEL_URL);
-      } catch {
-        cache.muzzleError = 'Failed to load muzzle model';
-      } finally {
-        cache.muzzleLoading = false;
-      }
+      tasks.push(
+        loadModel(MUZZLE_MODEL_URL)
+          .then((session) => { cache.muzzle = session; console.log('[ModelPreloader] ✅ Muzzle model ready'); })
+          .catch(() => { cache.muzzleError = 'Failed to load muzzle model'; })
+          .finally(() => { cache.muzzleLoading = false; })
+      );
     }
+
+    await Promise.all(tasks);
+    console.log('[ModelPreloader] All models loaded. cow:', !!cache.cow, 'muzzle:', !!cache.muzzle);
   })();
 
   return preloadPromise;
