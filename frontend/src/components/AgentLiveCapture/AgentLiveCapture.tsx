@@ -36,6 +36,8 @@ const HIGHLIGHT_DURATION_MS = 1200;
 const OVERLAY_FPS = 20;
 const DETECTION_STABLE_MS = 600; // time object must be stable before "ready"
 const FORCE_CAPTURE_DELAY_MS = 7000; // show force-capture btn after 7s without detection
+/** Grace period: keep using last cow box for muzzle step after cow is lost (user zooming in) */
+const COW_GRACE_PERIOD_MS = 5000;
 
 type CaptureStep = 'cow_detection' | 'muzzle_detection' | 'body_texture' | 'agent_selfie';
 
@@ -79,6 +81,8 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
   const sessionStartRef = useRef<number>(Date.now());
   const stableStartRef = useRef<number | null>(null);
   const lastCowBoxRef = useRef<CowDetection | null>(null);
+  /** Timestamp when cow was last detected — used for grace period during muzzle step */
+  const cowLastSeenTimeRef = useRef<number>(0);
   const stepStartRef = useRef<number>(Date.now());
 
   // MediaRecorder refs for live video capture
@@ -107,9 +111,11 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
   const [showPreview, setShowPreview] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
 
-  // Ref for throttling cow detection from overlay loop
+  // Refs for throttling detection from overlay loop
   const lastCowDetectTimeRef = useRef<number>(0);
+  const lastMuzzleDetectTimeRef = useRef<number>(0);
   const COW_DETECT_INTERVAL = 1000 / 12; // ~12fps cow detection
+  const MUZZLE_DETECT_INTERVAL = 1000 / 8; // ~8fps muzzle detection (heavier model)
 
   const currentStep = STEPS[currentStepIdx];
 
@@ -276,15 +282,25 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
       if ((step.id === 'cow_detection' || step.id === 'muzzle_detection') && getCowSession()) {
         if (now - lastCowDetectTimeRef.current >= COW_DETECT_INTERVAL) {
           lastCowDetectTimeRef.current = now;
-          // Fire-and-forget: runDetection updates cow.bestDetection via setState
+          // Fire-and-forget: runDetection updates cow.bestDetectionRef synchronously
+          // so drawCowDetectionStep reads the result immediately on the SAME frame.
           cow.runDetection(video);
+        }
+      }
+
+      // DRIVE MUZZLE DETECTION from this loop (full frame, no cow-box crop)
+      if (step.id === 'muzzle_detection' && getMuzzleSession()) {
+        if (now - lastMuzzleDetectTimeRef.current >= MUZZLE_DETECT_INTERVAL) {
+          lastMuzzleDetectTimeRef.current = now;
+          // Fire-and-forget: detectMuzzle updates muzzleDet.muzzleDetectionRef
+          muzzleDet.detectMuzzle(video);
         }
       }
 
       if (step.id === 'cow_detection') {
         drawCowDetectionStep(ctx, overlay, video, now);
       } else if (step.id === 'muzzle_detection') {
-        await drawMuzzleDetectionStep(ctx, overlay, video, now);
+        drawMuzzleDetectionStep(ctx, overlay, video, now);
       } else if (step.id === 'body_texture') {
         drawTextureStep(ctx, overlay, video);
       } else if (step.id === 'agent_selfie') {
@@ -304,7 +320,8 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
     video: HTMLVideoElement,
     now: number,
   ) {
-    const det = cow.bestDetection;
+    // Read from the MUTABLE REF — always current, no React render delay
+    const det = cow.bestDetectionRef.current;
 
     // Run capture assistant for quality scoring
     const q = det ? analyzeFrame(video, det, null) : null;
@@ -381,19 +398,38 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
   }
 
   // ─── Muzzle detection step overlay ─────────────────────────────────
-  async function drawMuzzleDetectionStep(
+  function drawMuzzleDetectionStep(
     ctx: CanvasRenderingContext2D,
     overlay: HTMLCanvasElement,
     video: HTMLVideoElement,
     now: number,
   ) {
-    const cowDet = cow.bestDetection;
+    // Read from the MUTABLE REF — always current, no React render delay
+    const liveCowDet = cow.bestDetectionRef.current;
 
-    if (!cowDet) {
+    // Track when cow was last actively detected
+    if (liveCowDet) {
+      cowLastSeenTimeRef.current = now;
+      lastCowBoxRef.current = liveCowDet;
+    }
+
+    // Use live cow detection, or fall back to the last-known cow box within
+    // a grace period.  This lets the user zoom in on the muzzle — the cow
+    // model will lose the full body, but the muzzle model keeps working.
+    const cowWithinGrace =
+      !liveCowDet &&
+      lastCowBoxRef.current &&
+      (now - cowLastSeenTimeRef.current) < COW_GRACE_PERIOD_MS;
+    const cowDet = liveCowDet ?? (cowWithinGrace ? lastCowBoxRef.current : null);
+
+    // Read muzzle from MUTABLE REF (detection driven by the overlay loop above)
+    const muzzle = muzzleDet.muzzleDetectionRef.current;
+
+    // ── When neither cow NOR muzzle is available ─────────────────────
+    if (!cowDet && (!muzzle || muzzle.confidence < 0.30)) {
       stableStartRef.current = null;
       setIsDetectionReady(false);
-      setSuggestion('Find the cow first, then move closer to its muzzle');
-      // Show guide
+      setSuggestion('Point camera at the cow, then move closer to its muzzle');
       ctx.save();
       ctx.font = 'bold 14px sans-serif';
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
@@ -403,29 +439,22 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
       return;
     }
 
-    // Draw faint cow box
-    ctx.strokeStyle = 'rgba(59,130,246,0.3)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([6, 4]);
-    ctx.strokeRect(cowDet.x, cowDet.y, cowDet.width, cowDet.height);
-    ctx.setLineDash([]);
-
-    // Run muzzle detection within cow box (check singleton cache directly)
-    let muzzle: MuzzleDetection | null = null;
-    if (getMuzzleSession()) {
-      try {
-        muzzle = await muzzleDet.detectMuzzle(video, cowDet);
-      } catch {
-        // keep null
-      }
+    // Draw faint cow box if we have one (live or grace period)
+    if (cowDet) {
+      const cowAlpha = liveCowDet ? 0.3 : 0.15; // dimmer when using grace-period box
+      ctx.strokeStyle = `rgba(59,130,246,${cowAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(cowDet.x, cowDet.y, cowDet.width, cowDet.height);
+      ctx.setLineDash([]);
     }
 
-    // Run capture assistant
+    // Run capture assistant (uses cowDet for quality checks — or null if muzzle-only mode)
     const q = analyzeFrame(video, cowDet, muzzle);
     setQuality(q);
 
     if (!muzzle || muzzle.confidence < 0.30) {
-      // Show muzzle guide oval — centered in frame (within cow box if available, else screen center)
+      // Show muzzle guide oval — within cow box if available, else centered on screen
       const guideCx = cowDet ? cowDet.x + cowDet.width / 2 : overlay.width / 2;
       const guideCy = cowDet ? cowDet.y + cowDet.height * 0.65 : overlay.height / 2;
       const guideRx = cowDet ? cowDet.width * 0.22 : overlay.width * 0.15;
@@ -448,12 +477,14 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
 
       stableStartRef.current = null;
       setIsDetectionReady(false);
-      const tip = q.suggestions?.[0] || 'Move closer to the muzzle area';
+      const tip = q?.suggestions?.[0] || 'Move closer to the muzzle area';
       setSuggestion(tip);
       return;
     }
 
-    // Muzzle found — track stability
+    // ── Muzzle found — draw bounding box & enable capture ────────────
+
+    // Track stability
     if (!stableStartRef.current) {
       stableStartRef.current = now;
     }
@@ -488,8 +519,9 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
     }
     ctx.restore();
 
-    // Label
-    const label = `👃 Muzzle ${Math.round(muzzle.confidence * 100)}%`;
+    // Label — show "close-up" indicator when cow is lost but muzzle is detected
+    const closeUpTag = !liveCowDet ? ' 🔍' : '';
+    const label = `👃 Muzzle ${Math.round(muzzle.confidence * 100)}%${closeUpTag}`;
     ctx.font = 'bold 12px sans-serif';
     ctx.fillStyle = isStable ? 'rgba(22,163,74,0.9)' : 'rgba(245,158,11,0.9)';
     const mtw = ctx.measureText(label).width;
@@ -498,10 +530,10 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
     ctx.fillText(label, muzzle.x + 5, muzzle.y + muzzle.height + 16);
 
     // Quality bar from capture assistant
-    drawQualityBar(ctx, overlay, q);
+    if (q) drawQualityBar(ctx, overlay, q);
 
     setIsDetectionReady(isStable);
-    const tip = q.suggestions?.[0];
+    const tip = q?.suggestions?.[0];
     setSuggestion(
       isStable
         ? (tip === '✅ Good to capture!' ? '✅ Muzzle locked! Tap Capture' : `✅ Ready — ${tip || 'Tap Capture'}`)
@@ -755,14 +787,17 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
 
     try {
       if (step.id === 'cow_detection') {
-        const det = cow.bestDetection;
+        // Read from ref for the most current detection (no stale closure risk)
+        const det = cow.bestDetectionRef.current;
         if (!det) return;
         highlightRegion = { x: det.x, y: det.y, width: det.width, height: det.height };
         // Crop cow region for embedding
         file = await cropRegionFromVideo(video, det, `cow-${Date.now()}.jpg`, 0.20);
       } else if (step.id === 'muzzle_detection') {
-        const muzzle = muzzleDet.muzzleDetection;
-        const cowDet = cow.bestDetection;
+        // Read from mutable ref for the most current detection
+        const muzzle = muzzleDet.muzzleDetectionRef.current;
+        // Use live cow detection, or fall back to last-known cow box (close-up scenario)
+        const cowDet = cow.bestDetectionRef.current ?? lastCowBoxRef.current;
         if (!muzzle && !cowDet) return;
         if (muzzle) {
           highlightRegion = { x: muzzle.x, y: muzzle.y, width: muzzle.width, height: muzzle.height };
@@ -806,7 +841,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
       console.error('Capture error:', err);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStepIdx, cow.bestDetection, muzzleDet.muzzleDetection, capturedFiles, playHighlight, onStepCapture, advanceStep]);
+  }, [currentStepIdx, capturedFiles, playHighlight, onStepCapture, advanceStep]);
 
   // ─── Force-capture handler (no detection required) ─────────────────
   const handleForceCapture = useCallback(async () => {

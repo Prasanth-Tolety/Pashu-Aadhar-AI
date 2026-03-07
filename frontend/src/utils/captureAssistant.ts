@@ -222,6 +222,36 @@ export function analyzeFrame(
 
   // ── No cow detected ──
   if (!cowDetection) {
+    // If muzzle is detected close-up (user zoomed in, cow model lost body),
+    // give a partial score based on muzzle + basic frame quality checks.
+    if (muzzleDetection && muzzleDetection.confidence >= 0.30) {
+      score += 30; // muzzle detected close-up bonus
+
+      // Still run blur/exposure/motion checks on the frame
+      const blurTip = checkBlur(video);
+      if (blurTip) suggestions.push(blurTip); else score += 15;
+
+      const exposureTip = checkExposure(video);
+      if (exposureTip) suggestions.push(exposureTip); else score += 15;
+
+      const motionTip = checkMotion(video);
+      if (motionTip) suggestions.push(motionTip); else score += 10;
+
+      // Muzzle model confidence bonus
+      if (muzzleDetection.confidence > 0.5) score += 30;
+      else if (muzzleDetection.confidence > 0.4) score += 20;
+      else score += 10;
+
+      const approved = score >= APPROVAL_THRESHOLD;
+      const autoCapture = checkStability(approved);
+      return {
+        score,
+        approved,
+        suggestions: suggestions.length > 0 ? suggestions : ['✅ Good to capture!'],
+        autoCapture,
+      };
+    }
+
     approvalStartTime = null;
     return { score: 0, approved: false, suggestions: ['Point at cattle'], autoCapture: false };
   }

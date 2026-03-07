@@ -14,7 +14,7 @@
  */
 import { useRef, useState, useCallback, useEffect } from 'react';
 import * as ort from 'onnxruntime-web';
-import { getCowSession, getModelStatus } from './useModelPreloader';
+import { getCowSession, getModelStatus, acquireInferenceLock, releaseInferenceLock } from './useModelPreloader';
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface CowDetection {
@@ -249,6 +249,12 @@ export function useCowDetection(_modelUrl?: string) {
   const busyRef = useRef<boolean>(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Mutable ref that is updated synchronously — the rAF overlay loop reads
+  // this instead of React state so it always has the LATEST detection
+  // without waiting for React to re-render.
+  const bestDetectionRef = useRef<CowDetection | null>(null);
+  const detectionsRef = useRef<CowDetection[]>([]);
+
   const [state, setState] = useState<CowDetectionState>({
     isModelLoading: true,
     isModelReady: false,
@@ -280,11 +286,26 @@ export function useCowDetection(_modelUrl?: string) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
+  /**
+   * Run a single detection pass.  Uses getCowSession() directly from the
+   * global singleton so it works even before the 200ms poll has set
+   * sessionRef.  The result is stored in a mutable ref AND in React state:
+   *   • bestDetectionRef / detectionsRef → for the overlay rAF loop (sync)
+   *   • setState → for React-driven UI (buttons, suggestions, etc.)
+   */
   const runDetection = useCallback(async (video: HTMLVideoElement) => {
-    const session = sessionRef.current;
+    // Prefer sessionRef (already resolved), fall back to singleton cache
+    const session = sessionRef.current || getCowSession();
     if (!session || video.readyState < 2) return;
-    if (busyRef.current) return; // skip if previous inference still running
+    if (busyRef.current) return; // skip if previous cow inference still running
+
+    // Acquire global ONNX inference lock — WASM backend can only run one
+    // session.run() at a time across ALL sessions.
+    if (!acquireInferenceLock()) return;
     busyRef.current = true;
+
+    // Keep sessionRef in sync so future calls avoid the cache lookup
+    if (!sessionRef.current) sessionRef.current = session;
 
     try {
       const { tensor, scale, offsetX, offsetY } = preprocessFrame(video);
@@ -305,11 +326,17 @@ export function useCowDetection(_modelUrl?: string) {
         ? dets.reduce((a, b) => (a.confidence > b.confidence ? a : b))
         : null;
 
+      // Update MUTABLE refs first — overlay reads these synchronously
+      bestDetectionRef.current = best;
+      detectionsRef.current = dets;
+
+      // Then update React state (for UI buttons, readiness, etc.)
       setState((s) => ({ ...s, detections: dets, bestDetection: best }));
     } catch {
       // silently skip frame
     } finally {
       busyRef.current = false;
+      releaseInferenceLock();
     }
   }, []);
 
@@ -340,5 +367,14 @@ export function useCowDetection(_modelUrl?: string) {
     animRef.current = 0;
   }, []);
 
-  return { ...state, startDetection, stopDetection, runDetection };
+  return {
+    ...state,
+    startDetection,
+    stopDetection,
+    runDetection,
+    /** Mutable ref — always has the latest detection (no React render delay). Use in rAF loops. */
+    bestDetectionRef,
+    /** Mutable ref — always has the latest detections array. */
+    detectionsRef,
+  };
 }

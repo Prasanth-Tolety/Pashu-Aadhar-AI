@@ -96,3 +96,26 @@ export function getModelStatus() {
     muzzleError: cache.muzzleError,
   };
 }
+
+// ─── Global ONNX inference lock ──────────────────────────────────────
+// ONNX Runtime WASM backend cannot run two session.run() calls concurrently
+// (even on different sessions). This global lock serializes ALL inference calls
+// so only one is in flight at any time.
+let _inferencing = false;
+
+/** Returns true if the global inference lock is currently held. */
+export function isInferencing(): boolean {
+  return _inferencing;
+}
+
+/** Acquire the global inference lock. Returns false if already held. */
+export function acquireInferenceLock(): boolean {
+  if (_inferencing) return false;
+  _inferencing = true;
+  return true;
+}
+
+/** Release the global inference lock. */
+export function releaseInferenceLock(): void {
+  _inferencing = false;
+}
