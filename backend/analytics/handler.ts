@@ -15,12 +15,16 @@ import {
   ScanCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createLogger, buildResponse, buildErrorResponse } from '../shared/utils';
 
 const logger = createLogger('analytics');
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 const REGION = process.env.AWS_REGION || 'us-east-1';
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
+const s3Client = new S3Client({ region: REGION });
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || '';
 
 const ANIMALS_TABLE = 'animals';
 const OWNERS_TABLE = 'owners';
@@ -102,7 +106,7 @@ async function fullScan(tableName: string, projection?: string): Promise<Record<
 async function getSummary() {
   // Scan animals with 'state' as reserved word, sessions with 'status' as reserved word
   const [animalsFull, owners, sessionsFull] = await Promise.all([
-    scanWithReserved(ANIMALS_TABLE, 'livestock_id, #s, species, enrolled_at, breed, gender, owner_id, owner_name, village, image_key', { '#s': 'state' }),
+    scanWithReserved(ANIMALS_TABLE, 'livestock_id, #s, species, enrolled_at, breed, gender, owner_id, owner_name, village, image_key, photo_key, muzzle_key', { '#s': 'state' }),
     fullScan(OWNERS_TABLE, 'owner_id, created_at'),
     scanWithReserved(ENROLLMENT_SESSIONS_TABLE, 'session_id, #s, started_at, agent_id', { '#s': 'status' }),
   ]);
@@ -147,6 +151,28 @@ async function getSummary() {
     .sort((a, b) => ((b.enrolled_at as string) || '').localeCompare((a.enrolled_at as string) || ''))
     .slice(0, 20);
 
+  // Generate presigned URLs for recent animals' photos
+  const recentWithUrls = await Promise.all(
+    sortedAnimals.map(async (animal) => {
+      const enriched = { ...animal };
+      try {
+        if (animal.photo_key && typeof animal.photo_key === 'string' && BUCKET_NAME) {
+          enriched.photo_url = await getSignedUrl(s3Client,
+            new GetObjectCommand({ Bucket: BUCKET_NAME, Key: animal.photo_key as string }),
+            { expiresIn: 3600 });
+        }
+        if (animal.muzzle_key && typeof animal.muzzle_key === 'string' && BUCKET_NAME) {
+          enriched.muzzle_url = await getSignedUrl(s3Client,
+            new GetObjectCommand({ Bucket: BUCKET_NAME, Key: animal.muzzle_key as string }),
+            { expiresIn: 3600 });
+        }
+      } catch {
+        // Ignore presigned URL errors for individual animals
+      }
+      return enriched;
+    })
+  );
+
   return buildResponse(200, {
     total_animals: animalsFull.length,
     totalAnimals: animalsFull.length,
@@ -162,7 +188,7 @@ async function getSummary() {
     enrollments_last_7_days: weeklyEnrollments,
     gender_distribution: genderDist,
     species_distribution: speciesDist,
-    recentAnimals: sortedAnimals,
+    recentAnimals: recentWithUrls,
   }, ALLOWED_ORIGIN);
 }
 
