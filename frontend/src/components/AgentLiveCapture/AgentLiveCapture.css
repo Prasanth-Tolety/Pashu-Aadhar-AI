@@ -1,0 +1,531 @@
+/* ─── Agent Live Capture ─────────────────────────────────────────── */
+
+.agent-live-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-live-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  background: #111;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────── */
+.agent-live-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  color: white;
+  flex-shrink: 0;
+}
+
+.agent-live-header-left h3 {
+  font-size: 0.95rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.agent-live-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timer-badge {
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #ccc;
+}
+
+.timer-badge.timer-warning {
+  background: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  animation: pulse-timer 1s infinite;
+}
+
+@keyframes pulse-timer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ─── Viewfinder ─────────────────────────────────────────────────── */
+.agent-live-viewfinder {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: black;
+  overflow: hidden;
+}
+
+.agent-live-viewfinder .camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.agent-live-viewfinder .camera-overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ─── Loading / Error overlays ───────────────────────────────────── */
+.agent-live-loading-overlay,
+.agent-live-error-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  gap: 12px;
+  z-index: 5;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Step checklist overlay (top-left) ──────────────────────────── */
+.step-checklist-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.step-check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+  transition: all 0.3s;
+}
+
+.step-check-item.step-completed {
+  background: rgba(34, 197, 94, 0.35);
+}
+
+.step-check-item.step-active {
+  background: rgba(59, 130, 246, 0.5);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.step-check-item.step-pending {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.5;
+}
+
+.step-check-icon {
+  font-size: 0.85rem;
+}
+
+.step-check-label {
+  white-space: nowrap;
+}
+
+.step-optional-tag {
+  font-size: 0.6rem;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 1px 4px;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+/* ─── Suggestion overlay (top-right) ─────────────────────────────── */
+.suggestion-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fbbf24;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  max-width: 200px;
+  text-align: center;
+  z-index: 3;
+  pointer-events: none;
+  animation: fade-in 0.3s;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Camera switch dialog ───────────────────────────────────────── */
+.camera-switch-dialog {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 10;
+}
+
+.camera-switch-card {
+  background: #1e1e1e;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 320px;
+  width: 85%;
+  text-align: center;
+  color: white;
+}
+
+.camera-switch-card h4 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.camera-switch-card p {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.camera-switch-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.camera-switch-actions .btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.camera-switch-actions .btn-primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+
+.camera-switch-actions .btn-outline {
+  background: transparent;
+  color: #aaa;
+  border: 1px solid #444;
+}
+
+/* ─── Bottom controls ────────────────────────────────────────────── */
+.agent-live-controls {
+  flex-shrink: 0;
+  background: #1a1a1a;
+  padding: 10px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-live-step-info {
+  text-align: center;
+}
+
+.current-step-badge {
+  display: inline-block;
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.current-step-hint {
+  color: #888;
+  font-size: 0.78rem;
+  margin: 4px 0 0;
+}
+
+.agent-live-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* ─── Capture button (large circular) ────────────────────────────── */
+.agent-capture-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 4px solid #555;
+  background: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.agent-capture-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.agent-capture-btn.ready {
+  border-color: #22c55e;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.4);
+  animation: pulse-capture 1.5s infinite;
+}
+
+@keyframes pulse-capture {
+  0%, 100% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.3); }
+  50% { box-shadow: 0 0 24px rgba(34, 197, 94, 0.6); }
+}
+
+.capture-btn-inner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agent-capture-btn.ready .capture-btn-inner {
+  background: #22c55e;
+}
+
+.capture-btn-icon {
+  font-size: 1.4rem;
+}
+
+.agent-capture-btn:active:not(:disabled) .capture-btn-inner {
+  transform: scale(0.9);
+}
+
+/* ─── Skip / Flip buttons ────────────────────────────────────────── */
+.agent-skip-btn,
+.agent-flip-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: transparent;
+  color: #aaa;
+  border: 1px solid #444;
+  cursor: pointer;
+}
+
+.agent-skip-btn:hover,
+.agent-flip-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ─── Force Capture button ───────────────────────────────────────── */
+.agent-force-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.4);
+  animation: forceCapturePulse 1.5s ease-in-out infinite;
+}
+
+.agent-force-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.6);
+}
+
+@keyframes forceCapturePulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 4px 24px rgba(239, 68, 68, 0.6); }
+}
+
+/* ═══ Preview Screen ═════════════════════════════════════════════════ */
+
+.preview-mode {
+  background: #111;
+  overflow-y: auto;
+}
+
+.preview-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.preview-subtitle {
+  color: #999;
+  font-size: 0.82rem;
+  text-align: center;
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.preview-card {
+  background: #1e1e1e;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+}
+
+.preview-card.captured {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.preview-card.missing {
+  border-color: rgba(239, 68, 68, 0.2);
+  opacity: 0.6;
+}
+
+.preview-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.preview-status-ok {
+  font-size: 0.85rem;
+}
+
+.preview-status-missing {
+  font-size: 0.7rem;
+  color: #ef4444;
+}
+
+.preview-status-skipped {
+  font-size: 0.7rem;
+  color: #888;
+}
+
+.preview-image-wrapper {
+  position: relative;
+  aspect-ratio: 4/3;
+  background: #000;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-file-size {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #aaa;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.preview-placeholder {
+  aspect-ratio: 4/3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  color: #666;
+  font-size: 0.8rem;
+}
+
+.preview-video-info {
+  text-align: center;
+  color: #93c5fd;
+  font-size: 0.8rem;
+  padding: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 20px;
+}
+
+.preview-submit-btn {
+  padding: 14px !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+}
+
+.preview-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preview-retake-btn {
+  color: #facc15 !important;
+  border-color: rgba(250, 204, 21, 0.3) !important;
+}
+
+.preview-retake-btn:hover {
+  background: rgba(250, 204, 21, 0.1) !important;
+}
+
+.preview-discard-btn {
+  color: #ef4444 !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+  font-size: 0.85rem !important;
+}
+
+.preview-discard-btn:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+}

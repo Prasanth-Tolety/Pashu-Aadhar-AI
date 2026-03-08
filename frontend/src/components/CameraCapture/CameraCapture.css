@@ -54,8 +54,9 @@
 .camera-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  background: black;
 }
 
 .camera-guide {
@@ -89,6 +90,69 @@
   display: none;
 }
 
+/* Detection overlay canvas - sits on top of video */
+.camera-overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* AI status badge */
+.camera-ai-status {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transition: background 0.3s;
+}
+
+.status-loading {
+  background: rgba(100, 116, 139, 0.85);
+  color: #fff;
+}
+
+.status-error {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+
+.status-searching {
+  background: rgba(30, 41, 59, 0.85);
+  color: #94a3b8;
+}
+
+.status-detected {
+  background: rgba(202, 138, 4, 0.85);
+  color: #fff;
+}
+
+.status-good {
+  background: rgba(22, 163, 74, 0.9);
+  color: #fff;
+  animation: pulse-green 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-green {
+  from { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6); }
+  to   { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+}
+
+/* Hint text below controls */
+.camera-hint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 0 16px 12px;
+}
+
 .camera-controls {
   display: flex;
   align-items: center;
@@ -116,4 +180,199 @@
 
 .camera-error p {
   margin-bottom: 16px;
+}
+
+/* ─── Pipeline stage indicator dots ────────────────────────── */
+.pipeline-stages {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px 14px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.pipeline-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.35;
+  transition: opacity 0.4s, transform 0.3s;
+}
+
+.pipeline-dot span {
+  font-size: 1.1rem;
+}
+
+.pipeline-dot small {
+  font-size: 0.55rem;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.pipeline-dot.active {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.pipeline-dot.active small {
+  color: #e2e8f0;
+}
+
+.pipeline-line {
+  width: 16px;
+  height: 2px;
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 1px;
+  transition: background 0.5s;
+}
+
+.pipeline-line.active {
+  background: rgba(34, 197, 94, 0.7);
+}
+
+/* ─── Capturing status badge ───────────────────────────────── */
+.status-capturing {
+  background: rgba(34, 197, 94, 0.95);
+  color: #fff;
+  animation: pulse-green 0.4s ease-in-out infinite alternate;
+}
+
+/* ─── Viewfinder zoom animation on capture ─────────────────── */
+.viewfinder-capturing {
+  animation: capture-flash 1.8s ease-out;
+}
+
+@keyframes capture-flash {
+  0%   { filter: brightness(1); }
+  20%  { filter: brightness(1.2); }
+  50%  { filter: brightness(1.1); }
+  100% { filter: brightness(1); }
+}
+
+/* ─── Muzzle preview screen ────────────────────────────────── */
+.muzzle-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  gap: 16px;
+}
+
+.muzzle-preview-image-wrap {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.25);
+  border: 2px solid #22c55e;
+  animation: muzzle-glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes muzzle-glow {
+  from { box-shadow: 0 0 12px rgba(34, 197, 94, 0.2); }
+  to   { box-shadow: 0 0 28px rgba(34, 197, 94, 0.45); }
+}
+
+.muzzle-preview-image {
+  display: block;
+  max-width: 280px;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.muzzle-preview-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #22c55e;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.muzzle-preview-info {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.4;
+  max-width: 320px;
+}
+
+.muzzle-preview-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.muzzle-accept-btn {
+  flex: 1;
+  font-weight: 600;
+}
+
+.muzzle-retake-btn {
+  flex: 0.6;
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ─── Quality suggestions ──────────────────────────────────── */
+.quality-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 16px 0;
+}
+
+.quality-suggestion-item {
+  font-size: 0.72rem;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border-left: 3px solid #fbbf24;
+}
+
+/* ─── Floating suggestion toasts (top-right of viewfinder) ── */
+.floating-toasts {
+  position: absolute;
+  top: 50px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 20;
+  max-width: 160px;
+  pointer-events: none;
+}
+
+.toast-item {
+  background: rgba(0, 0, 0, 0.78);
+  color: #fbbf24;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border-left: 3px solid #fbbf24;
+  backdrop-filter: blur(6px);
+  animation: toast-in 0.3s ease-out;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

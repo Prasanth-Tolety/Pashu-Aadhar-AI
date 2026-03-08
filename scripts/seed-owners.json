@@ -1,0 +1,16 @@
+{
+  "owners": [
+    {
+      "PutRequest": {
+        "Item": {
+          "owner_id": { "S": "OWN-FARMER001" },
+          "owner_type": { "S": "individual_farmer" },
+          "name": { "S": "Raju Farmer" },
+          "contact_number": { "S": "+919876543210" },
+          "address": { "S": "Village Kothapalli, Medak District, Telangana" },
+          "created_at": { "S": "2026-03-05T00:00:00Z" }
+        }
+      }
+    }
+  ]
+}

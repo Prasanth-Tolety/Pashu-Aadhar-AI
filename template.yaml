@@ -41,6 +41,12 @@ Parameters:
     Type: String
     Default: '*'
     Description: CORS allowed origin (set to your frontend domain in production)
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID for authentication
+  CognitoUserPoolArn:
+    Type: String
+    Description: Cognito User Pool ARN for API Gateway authorizer
 
 Resources:
   # S3 Bucket for animal images
@@ -69,6 +75,10 @@ Resources:
             Status: Enabled
             Prefix: uploads/
             ExpirationInDays: 30
+          - Id: DeleteVideoCacheAfter7Days
+            Status: Enabled
+            Prefix: video-cache/
+            ExpirationInDays: 7
 
   # Shared utilities Lambda layer
   SharedUtilsLayer:
@@ -105,11 +115,15 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/recordings/*'
               - Effect: Allow
                 Action:
                   - s3:PutObject
-                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/uploads/*'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/recordings/*'
               - Effect: Allow
                 Action:
                   - sagemaker:InvokeEndpoint
@@ -120,6 +134,40 @@ Resources:
                   - es:ESHttpPost
                   - es:ESHttpPut
                 Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/animals'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/animals/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/owners'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/owners/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/health_records'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/health_records/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/milk_yields'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/milk_yields/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/insurance_policies'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/insurance_policies/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user_role_mapping'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user_role_mapping/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/embeddings'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/embeddings/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/access_requests'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/access_requests/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/loan_collateral'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/loan_collateral/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_requests'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_requests/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_sessions'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_sessions/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_agents'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_agents/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fraud_scores'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fraud_scores/index/*'
 
   # API Gateway
   PashuAadhaarApi:
@@ -128,11 +176,14 @@ Resources:
       Name: !Sub 'pashu-aadhaar-api-${Stage}'
       StageName: !Ref Stage
       Cors:
-        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: !Sub "'${AllowedOrigin}'"
       Auth:
-        DefaultAuthorizer: NONE
+        DefaultAuthorizer: CognitoAuth
+        Authorizers:
+          CognitoAuth:
+            UserPoolArn: !Ref CognitoUserPoolArn
 
   # GetUploadUrl Lambda
   GetUploadUrlFunction:
@@ -155,14 +206,18 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/get-upload-url
+            Path: /upload-url
             Method: GET
+            Auth:
+              Authorizer: NONE
         GetUploadUrlOptions:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/get-upload-url
+            Path: /upload-url
             Method: OPTIONS
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -198,14 +253,34 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/enroll
+            Path: /enroll
             Method: POST
+            Auth:
+              Authorizer: NONE
         EnrollOptions:
           Type: Api
           Properties:
             RestApiId: !Ref PashuAadhaarApi
-            Path: /api/enroll
+            Path: /enroll
             Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        Verify:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /verify
+            Method: POST
+            Auth:
+              Authorizer: NONE
+        VerifyOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /verify
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -214,6 +289,833 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - enroll/handler.ts
+
+  # Animals CRUD Lambda
+  AnimalsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-animals-${Stage}'
+      CodeUri: backend/
+      Handler: animals/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Animals CRUD - list, get, update, health records, milk yields
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          S3_BUCKET_NAME: !Ref S3BucketName
+      Events:
+        ListAnimals:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        ListAnimalsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetAnimal:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        UpdateAnimal:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        GetAnimalOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetHealthRecords:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/health
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddHealthRecord:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/health
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        HealthOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/health
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetMilkYields:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/milk
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddMilkYield:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/milk
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        MilkOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/milk
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetInsurance:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/insurance
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddInsurance:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/insurance
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        InsuranceOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/insurance
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetLoans:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/loans
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AddLoan:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/loans
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        LoansOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /animals/{id}/loans
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - animals/handler.ts
+
+  # Profile Lambda
+  ProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-profile-${Stage}'
+      CodeUri: backend/
+      Handler: profile/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: User profile - returns Cognito claims and DynamoDB owner data
+      Timeout: 10
+      MemorySize: 256
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /me
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        UpdateProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /me
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ProfileOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /me
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - profile/handler.ts
+
+  # Post-Confirmation Lambda (Cognito Trigger)
+  PostConfirmationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-post-confirmation-${Stage}'
+      CodeUri: backend/
+      Handler: post-confirmation/handler.handler
+      Role: !GetAtt PostConfirmationRole.Arn
+      Description: Creates DynamoDB owner record after user confirms signup
+      Timeout: 10
+      MemorySize: 256
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - post-confirmation/handler.ts
+
+  PostConfirmationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: PostConfirmationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/owners'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/user_role_mapping'
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminUpdateUserAttributes
+                Resource: !Ref CognitoUserPoolArn
+
+  PostConfirmationPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt PostConfirmationFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Ref CognitoUserPoolArn
+
+  # Access Requests Lambda
+  AccessRequestsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-access-requests-${Stage}'
+      CodeUri: backend/
+      Handler: access-requests/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Access request management - create, list, approve, deny
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Events:
+        CreateAccessRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ListAccessRequests:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AccessRequestsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetIncomingRequests:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/incoming
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        IncomingRequestsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/incoming
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetAccessibleAnimals:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/animals
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AccessibleAnimalsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/animals
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        ResolveAccessRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/{id}/resolve
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ResolveAccessRequestOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /access-requests/{id}/resolve
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - access-requests/handler.ts
+
+  # Enrollment Sessions Lambda
+  EnrollmentSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-enrollment-sessions-${Stage}'
+      CodeUri: backend/
+      Handler: enrollment-sessions/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Enrollment session management - farmer requests, agent sessions, step tracking
+      Timeout: 30
+      MemorySize: 512
+      Layers:
+        - !Ref SharedUtilsLayer
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          S3_BUCKET_NAME: !Ref S3BucketName
+          ENROLL_FUNCTION_NAME: !Ref EnrollFunction
+      Events:
+        # ── Enrollment Requests (farmer CRUD) ──
+        CreateEnrollmentRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ListEnrollmentRequests:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentRequestsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetEnrollmentRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentRequestByIdOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AcceptEnrollmentRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}/accept
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        AcceptEnrollmentRequestOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-requests/{id}/accept
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        # ── Enrollment Sessions (agent workflow) ──
+        StartEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ListEnrollmentSessions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentSessionsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        GetEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        UpdateEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        EnrollmentSessionByIdOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        StepEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/step
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        StepEnrollmentSessionOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/step
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        CompleteEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/complete
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        CompleteEnrollmentSessionOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/complete
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        MetadataEnrollmentSession:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/metadata
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        MetadataEnrollmentSessionOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /enrollment-sessions/{id}/metadata
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - enrollment-sessions/handler.ts
+
+  # Analytics Lambda (Government / Admin Dashboard)
+  AnalyticsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-analytics-${Stage}'
+      CodeUri: backend/
+      Handler: analytics/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Analytics API for government dashboard - state-wise data, trends, fraud summary
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          S3_BUCKET_NAME: !Ref S3BucketName
+      Events:
+        AnalyticsSummary:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/summary
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsStates:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/states
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsTrends:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/trends
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsBreeds:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/breeds
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsFraud:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/fraud
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsAgents:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/agents
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnalyticsSummaryOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/summary
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsStatesOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/states
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsTrendsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/trends
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsBreedsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/breeds
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsFraudOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/fraud
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AnalyticsAgentsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /analytics/agents
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - analytics/handler.ts
+
+  # DynamoDB Table: Access Requests
+  AccessRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: access_requests
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: request_id
+          AttributeType: S
+        - AttributeName: owner_id
+          AttributeType: S
+        - AttributeName: requester_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: request_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: owner-index
+          KeySchema:
+            - AttributeName: owner_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: requester-index
+          KeySchema:
+            - AttributeName: requester_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # DynamoDB Table: Enrollment Requests
+  EnrollmentRequestsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: enrollment_requests
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: request_id
+          AttributeType: S
+        - AttributeName: farmer_id
+          AttributeType: S
+        - AttributeName: assigned_agent_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: request_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: farmer-index
+          KeySchema:
+            - AttributeName: farmer_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: agent-index
+          KeySchema:
+            - AttributeName: assigned_agent_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # DynamoDB Table: Enrollment Sessions
+  EnrollmentSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: enrollment_sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: agent_id
+          AttributeType: S
+        - AttributeName: farmer_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: agent-index
+          KeySchema:
+            - AttributeName: agent_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: farmer-index
+          KeySchema:
+            - AttributeName: farmer_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # DynamoDB Table: Fraud Scores
+  FraudScoresTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: fraud_scores
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: livestock_id
+          AttributeType: S
+        - AttributeName: agent_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: livestock_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: agent-index
+          KeySchema:
+            - AttributeName: agent_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # DynamoDB Table: Enrollment Agents (registry)
+  EnrollmentAgentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: enrollment_agents
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: agent_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: agent_id
+          KeyType: HASH
+
+  # Allow enrollment-sessions Lambda to invoke enroll Lambda
+  EnrollmentSessionsInvokeEnrollPermission:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: EnrollmentSessionsInvokeEnroll
+      Roles:
+        - !Ref LambdaExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !GetAtt EnrollFunction.Arn
 
 Outputs:
   ApiUrl:
@@ -235,3 +1137,19 @@ Outputs:
   EnrollFunctionArn:
     Description: Enroll Lambda function ARN
     Value: !GetAtt EnrollFunction.Arn
+
+  AnimalsFunctionArn:
+    Description: Animals Lambda function ARN
+    Value: !GetAtt AnimalsFunction.Arn
+
+  ProfileFunctionArn:
+    Description: Profile Lambda function ARN
+    Value: !GetAtt ProfileFunction.Arn
+
+  AccessRequestsFunctionArn:
+    Description: Access Requests Lambda function ARN
+    Value: !GetAtt AccessRequestsFunction.Arn
+
+  EnrollmentSessionsFunctionArn:
+    Description: Enrollment Sessions Lambda function ARN
+    Value: !GetAtt EnrollmentSessionsFunction.Arn

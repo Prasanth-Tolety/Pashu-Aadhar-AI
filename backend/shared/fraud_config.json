@@ -1,0 +1,27 @@
+{
+  "record_video": true,
+  "record_audio": false,
+  "capture_metadata": true,
+  "store_ip": true,
+  "store_device_id": true,
+  "weights": {
+    "muzzle_embedding": 0.80,
+    "cow_face": 0.10,
+    "body_texture": 0.10,
+    "gps_proximity_km": 50
+  },
+  "fraud_thresholds": {
+    "duplicate_embedding_min": 0.85,
+    "max_enrollments_per_device_per_day": 20,
+    "max_enrollments_per_agent_per_hour": 10,
+    "cross_state_flag": true,
+    "location_consistency_radius_km": 100
+  },
+  "scoring_weights": {
+    "agent_behavior_score": 0.15,
+    "device_trust_score": 0.15,
+    "location_consistency_score": 0.20,
+    "image_quality_score": 0.20,
+    "duplicate_embedding_score": 0.30
+  }
+}

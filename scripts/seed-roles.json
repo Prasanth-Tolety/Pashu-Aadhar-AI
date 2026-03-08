@@ -1,0 +1,9 @@
+{
+  "roles": [
+    { "PutRequest": { "Item": { "role_id": { "S": "farmer" }, "role_name": { "S": "Farmer" } } } },
+    { "PutRequest": { "Item": { "role_id": { "S": "veterinarian" }, "role_name": { "S": "Veterinarian" } } } },
+    { "PutRequest": { "Item": { "role_id": { "S": "insurer" }, "role_name": { "S": "Insurer" } } } },
+    { "PutRequest": { "Item": { "role_id": { "S": "government" }, "role_name": { "S": "Government" } } } },
+    { "PutRequest": { "Item": { "role_id": { "S": "admin" }, "role_name": { "S": "Admin" } } } }
+  ]
+}

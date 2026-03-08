@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 import './ImageUpload.css';
 
 interface ImageUploadProps {
@@ -20,14 +21,15 @@ export default function ImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const validateFile = (file: File): boolean => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setValidationError('Invalid file type. Please upload a JPEG, PNG, or WebP image.');
+      setValidationError(t.invalidFileType);
       return false;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setValidationError('File too large. Maximum size is 10 MB.');
+      setValidationError(t.fileTooLarge);
       return false;
     }
     setValidationError(null);
@@ -70,7 +72,7 @@ export default function ImageUpload({
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
           >
-            Change Photo
+            {t.changePhoto}
           </button>
         </div>
       ) : (
@@ -81,25 +83,25 @@ export default function ImageUpload({
           onDragLeave={handleDragLeave}
         >
           <div className="upload-icon">🐄</div>
-          <p className="upload-title">Upload Animal Photo</p>
-          <p className="upload-hint">JPEG, PNG or WebP · Max 10 MB</p>
+          <p className="upload-title">{t.uploadAnimalPhoto}</p>
+          <p className="upload-hint">{t.uploadFormatHint}</p>
           <div className="upload-actions">
             <button
               className="btn btn-primary"
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
             >
-              📁 Browse File
+              📁 {t.browseFile}
             </button>
             <button
               className="btn btn-secondary"
               onClick={onCameraOpen}
               disabled={disabled}
             >
-              📷 Take Photo
+              📷 {t.takePhoto}
             </button>
           </div>
-          <p className="upload-drag-hint">or drag and drop here</p>
+          <p className="upload-drag-hint">{t.dragDropHint}</p>
         </div>
       )}
 

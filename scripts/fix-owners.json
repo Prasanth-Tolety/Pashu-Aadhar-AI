@@ -1,0 +1,78 @@
+{
+  "owners": [
+    {
+      "owner_id": "OWN-94d84468",
+      "role": "insurer",
+      "name": "Priya Insurer"
+    },
+    {
+      "owner_id": "OWN-948844e8",
+      "role": "government",
+      "name": "AHD Officer"
+    },
+    {
+      "owner_id": "OWN-74089418",
+      "role": "farmer",
+      "name": "Raju Farmer"
+    },
+    {
+      "owner_id": "OWN-f438f408",
+      "role": "veterinarian",
+      "name": "Dr. Sharma"
+    },
+    {
+      "owner_id": "OWN-74186458",
+      "role": "admin",
+      "name": "System Admin"
+    },
+    {
+      "owner_id": "OWN-d4486428",
+      "role": "administrator",
+      "name": "Prasanth"
+    }
+  ],
+  "role_mappings": [
+    {
+      "mapping_id": "MAP-74089418",
+      "user_id": "74089418-e0e1-7042-f8f9-5c1df9bfcde5",
+      "role": "farmer",
+      "owner_id": "OWN-74089418"
+    },
+    {
+      "mapping_id": "MAP-f438f408",
+      "user_id": "f438f408-a021-7005-6596-ae904f804cfd",
+      "role": "veterinarian",
+      "owner_id": "OWN-f438f408"
+    },
+    {
+      "mapping_id": "MAP-94d84468",
+      "user_id": "94d84468-b0f1-702b-3e2d-952b2b8b0be3",
+      "role": "insurer",
+      "owner_id": "OWN-94d84468"
+    },
+    {
+      "mapping_id": "MAP-948844e8",
+      "user_id": "948844e8-60f1-708d-6a0d-84bee4c9d988",
+      "role": "government",
+      "owner_id": "OWN-948844e8"
+    },
+    {
+      "mapping_id": "MAP-74186458",
+      "user_id": "74186458-8061-7099-8fd7-7568ea5a522d",
+      "role": "admin",
+      "owner_id": "OWN-74186458"
+    },
+    {
+      "mapping_id": "MAP-d4486428",
+      "user_id": "d4486428-00a1-70ae-62de-85e58b10f4e0",
+      "role": "administrator",
+      "owner_id": "OWN-d4486428"
+    },
+    {
+      "mapping_id": "MAP-4488d4b8",
+      "user_id": "4488d4b8-60d1-7090-23d3-9342174a7f0b",
+      "role": "admin",
+      "owner_id": "OWN-4488d4b8"
+    }
+  ]
+}

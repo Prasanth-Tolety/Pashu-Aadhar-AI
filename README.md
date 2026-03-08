@@ -84,9 +84,9 @@ Expected output:
     Listening on http://localhost:3001
 
     Endpoints:
-      GET  /api/get-upload-url?fileName=...&contentType=...
+      GET  /upload-url?fileName=...&contentType=...
       PUT  /mock-upload/<imageKey>        (fake S3 upload)
-      POST /api/enroll                   (mock ML + vector search)
+      POST /enroll                       (mock ML + vector search)
 ```
 
 **Terminal 2 — Frontend dev server**
@@ -112,9 +112,9 @@ Open **http://localhost:3000** and go through the full enrollment flow.
 
 | Step | What happens locally |
 |---|---|
-| `GET /api/get-upload-url` | Returns a fake `uploadUrl` pointing to `localhost:3001/mock-upload/…` |
+| `GET /upload-url` | Returns a fake `uploadUrl` pointing to `localhost:3001/mock-upload/…` |
 | `PUT <uploadUrl>` | Mock server accepts the raw image bytes and returns `200 OK` (nothing is stored) |
-| `POST /api/enroll` | Returns a mock `NEW` or `EXISTING` result (alternates on each call so you can test both screens) |
+| `POST /enroll` | Returns a mock `NEW` or `EXISTING` result (alternates on each call so you can test both screens) |
 
 **Enrollment response pattern:**
 
@@ -131,9 +131,9 @@ Open **http://localhost:3000** and go through the full enrollment flow.
 
 1. User opens the portal and clicks **Start Enrollment**
 2. User captures a photo using the device camera or uploads an image
-3. Frontend requests a presigned S3 upload URL from `GET /api/get-upload-url`
+3. Frontend requests a presigned S3 upload URL from `GET /upload-url`
 4. Frontend uploads image directly to S3 using the presigned URL
-5. Frontend calls `POST /api/enroll` with the image key
+5. Frontend calls `POST /enroll` with the image key
 6. Lambda retrieves the image, calls SageMaker for embeddings, searches OpenSearch
 7. Returns `NEW` or `EXISTING` status with livestock ID and similarity score
 
@@ -176,7 +176,16 @@ npm run build
 |---|---|---|
 | `VITE_API_BASE_URL` | *(empty — uses Vite proxy)* | `https://<api-id>.execute-api.<region>.amazonaws.com/prod` |
 
-### Backend (Lambda)
+### Backend (Lambda — API Gateway routes)
+
+The Lambda functions are exposed via API Gateway at these routes:
+
+| Route | Method | Lambda | Description |
+|---|---|---|---|
+| `/upload-url` | GET | `GetUploadUrlFunction` | Generates a presigned S3 URL for image upload |
+| `/enroll` | POST | `EnrollFunction` | Processes enrollment via SageMaker + OpenSearch |
+
+### Backend (Lambda — environment variables)
 | Variable | Description |
 |---|---|
 | `S3_BUCKET_NAME` | S3 bucket for animal images |
@@ -331,11 +340,11 @@ PUT /livestock-embeddings
 ### Step 5 — Verify the Deployment
 
 ```bash
-# Test the get-upload-url endpoint
-curl "https://<api-id>.execute-api.<region>.amazonaws.com/prod/api/get-upload-url?fileName=test.jpg&contentType=image/jpeg"
+# Test the upload-url endpoint
+curl "https://<api-id>.execute-api.<region>.amazonaws.com/prod/upload-url?fileName=test.jpg&contentType=image/jpeg"
 
 # Test the enroll endpoint
-curl -X POST "https://<api-id>.execute-api.<region>.amazonaws.com/prod/api/enroll" \
+curl -X POST "https://<api-id>.execute-api.<region>.amazonaws.com/prod/enroll" \
   -H "Content-Type: application/json" \
   -d '{"imageKey": "uploads/test.jpg"}'
 ```

@@ -1,0 +1,737 @@
+.detail-container {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.detail-header {
+  background: white;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.back-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.detail-header h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #333;
+}
+
+.id-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem 2rem;
+  text-align: center;
+}
+
+.id-label {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.3rem;
+}
+
+.id-value-large {
+  font-family: monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: white;
+  border-bottom: 2px solid #e0e0e0;
+  padding: 0 2rem;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: #888;
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  position: relative;
+}
+
+.tab:hover {
+  color: #667eea;
+  background: #667eea08;
+}
+
+.tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+.tab-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Tab panel animation */
+.tab-panel-anim {
+  animation: tabSlideIn 0.3s ease;
+}
+
+@keyframes tabSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Details */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.info-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+
+.info-value {
+  font-size: 1.05rem;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Records */
+.add-record-btn {
+  padding: 0.6rem 1.2rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background 0.2s;
+}
+
+.add-record-btn:hover {
+  background: #5569d6;
+}
+
+.record-form {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 150px;
+}
+
+.record-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.record-form label {
+  display: block;
+  font-weight: 600;
+  color: #444;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.record-form input,
+.record-form select,
+.record-form textarea {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.record-form input:focus,
+.record-form select:focus,
+.record-form textarea:focus {
+  border-color: #667eea;
+}
+
+.submit-btn {
+  padding: 0.7rem 1.5rem;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submit-btn:hover {
+  background: #43a047;
+}
+
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.record-type {
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.type-vaccination {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.type-checkup {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.type-treatment {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.type-deworming {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.record-date {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.record-detail {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.record-due {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #f57f17;
+  font-weight: 600;
+}
+
+.empty-records {
+  text-align: center;
+  padding: 2rem;
+  color: #888;
+  background: white;
+  border-radius: 12px;
+}
+
+/* Milk Table */
+.milk-table-wrapper {
+  overflow-x: auto;
+}
+
+.milk-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.milk-table th {
+  background: #f5f5f5;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.8rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.milk-table td {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #f0f0f0;
+  font-size: 0.95rem;
+}
+
+.total-yield {
+  font-weight: 700;
+  color: #667eea;
+}
+
+/* Loading / Error */
+.loading-state {
+  text-align: center;
+  padding: 4rem;
+  color: #888;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e0e0e0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-state {
+  text-align: center;
+  padding: 4rem;
+  color: #c00;
+}
+
+.back-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.2rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Role chip in header */
+.role-chip {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Status badge on banner */
+.animal-status {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.status-active {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.status-inactive {
+  background: rgba(255,0,0,0.2);
+  color: #ffcdd2;
+}
+
+/* ─── Insurance & Loans ──────────────────────────────────────────── */
+.insurance-card,
+.loan-card {
+  border-left: 4px solid transparent;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.insurance-card {
+  border-left-color: #1976d2;
+}
+
+.loan-card {
+  border-left-color: #e65100;
+}
+
+.insurance-card:hover,
+.loan-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.insurance-details,
+.loan-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem 1rem;
+}
+
+.type-insurance {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.type-loan-active {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.type-loan-repaid {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.type-loan-overdue {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.note-text {
+  font-style: italic;
+  color: #888;
+  margin-top: 0.4rem;
+}
+
+.empty-hint {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-top: 0.3rem;
+}
+
+/* ─── Info grid hover ─────────────────────────────────────────────── */
+.info-item {
+  background: white;
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.info-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* ─── Record card hover ──────────────────────────────────────────── */
+.record-card {
+  background: white;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.record-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Edit details button & form */
+.edit-details-btn {
+  padding: 0.5rem 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background 0.2s;
+}
+
+.edit-details-btn:hover {
+  background: #5569d6;
+}
+
+.edit-details-form {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.edit-details-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.edit-details-form label {
+  display: block;
+  font-weight: 600;
+  color: #444;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.edit-details-form input,
+.edit-details-form select,
+.edit-details-form textarea {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.edit-details-form input:focus,
+.edit-details-form select:focus,
+.edit-details-form textarea:focus {
+  border-color: #667eea;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.cancel-btn {
+  padding: 0.7rem 1.5rem;
+  background: #eee;
+  color: #666;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #ddd;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .detail-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .tab-content {
+    padding: 1rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tabs {
+    padding: 0 0.5rem;
+    overflow-x: auto;
+  }
+
+  .tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .edit-details-form .form-row {
+    flex-direction: column;
+  }
+}
+
+/* ─── Animal images (profile photo + muzzle ROI) ──────────── */
+.animal-images-section {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.animal-photo-box,
+.animal-muzzle-box {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5f7fa;
+  border: 2px solid #e2e8f0;
+  text-align: center;
+}
+
+.animal-photo-box {
+  width: 200px;
+  min-height: 160px;
+}
+
+.animal-muzzle-box {
+  width: 160px;
+  min-height: 130px;
+}
+
+.animal-profile-img,
+.animal-muzzle-img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.animal-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  font-size: 2.5rem;
+  color: #cbd5e1;
+}
+
+.animal-photo-placeholder span {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.photo-change-btn {
+  display: block;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667eea;
+  cursor: pointer;
+  background: #f0f4ff;
+  transition: background 0.2s;
+}
+
+.photo-change-btn:hover {
+  background: #e0e7ff;
+}
+
+.muzzle-readonly-badge {
+  display: block;
+  text-align: center;
+  padding: 5px 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+/* ─── Fraud Risk Score Banner ─────────────────── */
+.fraud-score-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.fraud-score-banner.risk-low {
+  background: #e8f5e9;
+  border-left: 4px solid #4caf50;
+}
+
+.fraud-score-banner.risk-medium {
+  background: #fff3e0;
+  border-left: 4px solid #ff9800;
+}
+
+.fraud-score-banner.risk-high {
+  background: #fbe9e7;
+  border-left: 4px solid #f44336;
+}
+
+.fraud-score-banner.risk-critical {
+  background: #f3e5f5;
+  border-left: 4px solid #9c27b0;
+}
+
+.fraud-score-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.fraud-score-icon {
+  font-size: 1.5rem;
+}
+
+.fraud-score-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #546e7a;
+  font-weight: 600;
+}
+
+.fraud-score-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 800;
+  font-family: monospace;
+  color: #263238;
+}
+
+.fraud-risk-badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.badge-low { background: #c8e6c9; color: #2e7d32; }
+.badge-medium { background: #ffe0b2; color: #e65100; }
+.badge-high { background: #ffcdd2; color: #c62828; }
+.badge-critical { background: #e1bee7; color: #6a1b9a; }
+
+.fraud-flags {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.fraud-flag-chip {
+  padding: 0.2rem 0.6rem;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #546e7a;
+  text-transform: capitalize;
+}
