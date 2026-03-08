@@ -1,0 +1,16 @@
+{
+  "name": "pashu-aadhaar-seed-data",
+  "version": "1.0.0",
+  "description": "Seed script for Pashu Aadhaar AI — populates all DynamoDB tables with realistic Indian-context dummy data",
+  "type": "module",
+  "scripts": {
+    "seed": "node seed.mjs",
+    "seed:dry-run": "DRY_RUN=true node seed.mjs",
+    "clear": "node clear-tables.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/client-s3": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0"
+  }
+}
