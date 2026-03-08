@@ -156,7 +156,6 @@ export default function Dashboard() {
         </div>
         <div className="header-right">
           <LanguageSelector compact />
-          <button onClick={loadDashboardData} className="refresh-btn-small" title={t.refresh}>🔄</button>
           <div className="user-info">
             <span className="user-name">{user?.name || 'User'}</span>
             <span className="user-display-id">{displayId}</span>
@@ -188,6 +187,79 @@ export default function Dashboard() {
         {/* ─── Overview Tab ─── */}
         {activeTab === 'overview' && (
           <div className="tab-panel fade-in">
+            {/* Role-Specific Summary Stats */}
+            <section className="dash-summary-stats">
+              <div className="summary-header">
+                <h2>📊 {t.overview}</h2>
+                <button onClick={loadDashboardData} className="refresh-btn-inline" title={t.refresh}>🔄 {t.refresh}</button>
+              </div>
+              <div className="summary-cards">
+                {isFarmer && (
+                  <>
+                    <div className="summary-card">
+                      <span className="summary-icon">🐮</span>
+                      <div><span className="summary-value">{animals.length}</span><span className="summary-label">My Cattle</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">📩</span>
+                      <div><span className="summary-value">{pendingCount}</span><span className="summary-label">Pending Requests</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">✅</span>
+                      <div><span className="summary-value">{incomingRequests.filter(r => r.status === 'approved').length}</span><span className="summary-label">Approved Access</span></div>
+                    </div>
+                  </>
+                )}
+                {isVetOrInsurer && (
+                  <>
+                    <div className="summary-card">
+                      <span className="summary-icon">🐮</span>
+                      <div><span className="summary-value">{accessibleAnimals.length}</span><span className="summary-label">Accessible Animals</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">📋</span>
+                      <div><span className="summary-value">{myRequests.length}</span><span className="summary-label">My Requests</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">✅</span>
+                      <div><span className="summary-value">{myRequests.filter(r => r.status === 'approved').length}</span><span className="summary-label">Approved</span></div>
+                    </div>
+                  </>
+                )}
+                {isAgent && (
+                  <>
+                    <div className="summary-card">
+                      <span className="summary-icon">📋</span>
+                      <div><span className="summary-value">—</span><span className="summary-label">Enrollment Sessions</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">✅</span>
+                      <div><span className="summary-value">—</span><span className="summary-label">Completed</span></div>
+                    </div>
+                  </>
+                )}
+                {isGovOrAdmin && (
+                  <>
+                    <div className="summary-card">
+                      <span className="summary-icon">🐄</span>
+                      <div><span className="summary-value">—</span><span className="summary-label">Total Animals</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">🧑‍🌾</span>
+                      <div><span className="summary-value">—</span><span className="summary-label">Total Farmers</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">🗺️</span>
+                      <div>
+                        <Link to="/gov-dashboard" className="summary-link">View Analytics →</Link>
+                        <span className="summary-label">Full Dashboard</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
             {/* Quick Actions */}
             <section className="quick-actions">
               {isFarmer && (
@@ -217,7 +289,10 @@ export default function Dashboard() {
             {/* Farmer's Animals */}
             {isFarmer && (
               <section className="animals-section">
-                <h2>🐮 {t.myAnimals}</h2>
+                <div className="section-title-row">
+                  <h2>🐮 {t.myAnimals}</h2>
+                  <button onClick={loadDashboardData} className="refresh-btn-inline small" title={t.refresh}>🔄</button>
+                </div>
                 {loading ? (
                   <div className="loading-state"><div className="loading-spinner" /><p>{t.loadingAnimals}</p></div>
                 ) : error ? (
@@ -255,7 +330,10 @@ export default function Dashboard() {
             {/* Vet/Insurer: Accessible Animals */}
             {isVetOrInsurer && accessibleAnimals.length > 0 && (
               <section className="accessible-animals">
-                <h3>🐮 {t.animalsICanAccess}</h3>
+                <div className="section-title-row">
+                  <h3>🐮 {t.animalsICanAccess}</h3>
+                  <button onClick={loadDashboardData} className="refresh-btn-inline small" title={t.refresh}>🔄</button>
+                </div>
                 <div className="animals-grid">
                   {accessibleAnimals.map((animal) => (
                     <Link key={animal.livestock_id} to={`/animals/${animal.livestock_id}`} className="animal-card">

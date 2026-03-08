@@ -224,6 +224,136 @@
   margin-bottom: 2rem;
 }
 
+/* ─── Summary Stats (Role-specific) ──────────────────────────────── */
+.dash-summary-stats {
+  margin-bottom: 2rem;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.summary-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  padding: 1.15rem 1.4rem;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border-left: 4px solid #667eea;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.summary-card:nth-child(2) { border-left-color: #e65100; }
+.summary-card:nth-child(3) { border-left-color: #2e7d32; }
+
+.summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.summary-icon {
+  font-size: 1.6rem;
+  background: #f0f2ff;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.summary-card > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #1a1a2e;
+}
+
+.summary-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+}
+
+.summary-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.summary-link:hover {
+  text-decoration: underline;
+}
+
+/* ─── Inline Refresh Button ──────────────────────────────────────── */
+.refresh-btn-inline {
+  background: linear-gradient(135deg, #667eea20, #764ba220);
+  border: 2px solid #667eea30;
+  border-radius: 10px;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #667eea;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.refresh-btn-inline:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+}
+
+.refresh-btn-inline.small {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+
+/* ─── Section Title Row ──────────────────────────────────────────── */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.section-title-row h2,
+.section-title-row h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
 .action-card {
   display: flex;
   align-items: center;

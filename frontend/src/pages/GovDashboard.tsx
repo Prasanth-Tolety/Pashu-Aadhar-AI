@@ -27,7 +27,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   LineChart, Line,
 } from 'recharts';
-import IndiaMap from '../components/IndiaMap/IndiaMap';
+import IndiaMap from '../components/IndiaMap';
 import '../styles/GovDashboard.css';
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -222,13 +222,16 @@ export default function GovDashboard() {
             <span className="tri-white" />
             <span className="tri-green" />
           </div>
-          <button onClick={loadAll} className="gov-refresh-btn" title="Refresh">🔄</button>
         </div>
       </header>
 
       {error && <div className="gov-error">{error}</div>}
 
       {/* KPI Cards */}
+      <div className="kpi-section-header">
+        <h2 className="kpi-section-title">📊 Key Performance Indicators</h2>
+        <button onClick={loadAll} className="gov-refresh-btn" title="Refresh">🔄 Refresh</button>
+      </div>
       <section className="kpi-grid">
         <div className="kpi-card kpi-animals">
           <span className="kpi-icon">🐄</span>

@@ -115,143 +115,145 @@ export default function Profile() {
         <h1>{t.myProfile}</h1>
       </header>
 
-      {/* ID Card */}
-      <div className="id-card" style={{ background: roleConfig?.gradient }}>
-        <div className="id-card-top">
-          <span className="id-card-icon">{roleConfig?.icon}</span>
-          <div>
-            <h2 className="id-card-name">{profile?.name || user?.name || 'User'}</h2>
-            <span className="id-card-role">{roleConfig?.label}</span>
+      <div className="profile-body">
+        {/* ID Card */}
+        <div className="id-card" style={{ background: roleConfig?.gradient }}>
+          <div className="id-card-top">
+            <span className="id-card-icon">{roleConfig?.icon}</span>
+            <div>
+              <h2 className="id-card-name">{profile?.name || user?.name || 'User'}</h2>
+              <span className="id-card-role">{roleConfig?.label}</span>
+            </div>
           </div>
-        </div>
-        <div className="id-card-bottom">
-          <div className="id-card-field">
-            <span className="id-card-label">{t.userId}</span>
-            <span className="id-card-value">{displayId}</span>
-          </div>
-          <div className="id-card-field">
-            <span className="id-card-label">{t.phone}</span>
-            <span className="id-card-value">{profile?.phone_number || user?.phoneNumber}</span>
-          </div>
-          {form.aadhaar_last4 && (
+          <div className="id-card-bottom">
             <div className="id-card-field">
-              <span className="id-card-label">{t.aadhaar}</span>
-              <span className="id-card-value">XXXX-XXXX-{form.aadhaar_last4}</span>
+              <span className="id-card-label">{t.userId}</span>
+              <span className="id-card-value">{displayId}</span>
             </div>
-          )}
+            <div className="id-card-field">
+              <span className="id-card-label">{t.phone}</span>
+              <span className="id-card-value">{profile?.phone_number || user?.phoneNumber}</span>
+            </div>
+            {form.aadhaar_last4 && (
+              <div className="id-card-field">
+                <span className="id-card-label">{t.aadhaar}</span>
+                <span className="id-card-value">XXXX-XXXX-{form.aadhaar_last4}</span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Stats Summary */}
-      <div className="profile-stats">
-        <div className="stat-card">
-          <span className="stat-icon">📅</span>
-          <div><span className="stat-value">{memberSince}</span><span className="stat-label">{t.memberSince}</span></div>
-        </div>
-        {role === 'farmer' && (
+        {/* Stats Summary */}
+        <div className="profile-stats">
           <div className="stat-card">
-            <span className="stat-icon">🐮</span>
-            <div><span className="stat-value">{animalCount}</span><span className="stat-label">{t.animalsEnrolled}</span></div>
+            <span className="stat-icon">📅</span>
+            <div><span className="stat-value">{memberSince}</span><span className="stat-label">{t.memberSince}</span></div>
+          </div>
+          {role === 'farmer' && (
+            <div className="stat-card">
+              <span className="stat-icon">🐮</span>
+              <div><span className="stat-value">{animalCount}</span><span className="stat-label">{t.animalsEnrolled}</span></div>
+            </div>
+          )}
+          <div className="stat-card">
+            <span className="stat-icon">✅</span>
+            <div><span className="stat-value">{t.active}</span><span className="stat-label">{t.accountStatus}</span></div>
+          </div>
+        </div>
+
+        {message && (
+          <div className={`profile-message ${message.includes('success') ? 'success' : 'error'}`}>
+            {message}
           </div>
         )}
-        <div className="stat-card">
-          <span className="stat-icon">✅</span>
-          <div><span className="stat-value">{t.active}</span><span className="stat-label">{t.accountStatus}</span></div>
-        </div>
-      </div>
 
-      {message && (
-        <div className={`profile-message ${message.includes('success') ? 'success' : 'error'}`}>
-          {message}
-        </div>
-      )}
+        {/* Profile Details */}
+        <div className="profile-section">
+          <div className="profile-section-header">
+            <h3>{t.personalDetails}</h3>
+            {!editing && (
+              <button className="edit-btn" onClick={() => setEditing(true)}>
+                ✏️ {t.edit}
+              </button>
+            )}
+          </div>
 
-      {/* Profile Details */}
-      <div className="profile-section">
-        <div className="profile-section-header">
-          <h3>{t.personalDetails}</h3>
-          {!editing && (
-            <button className="edit-btn" onClick={() => setEditing(true)}>
-              ✏️ {t.edit}
-            </button>
+          {editing ? (
+            <div className="profile-form">
+              <div className="form-group">
+                <label>{t.fullName}</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>{t.aadhaarLast4}</label>
+                <input
+                  type="text"
+                  value={form.aadhaar_last4}
+                  onChange={(e) => setForm({ ...form, aadhaar_last4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  maxLength={4}
+                  placeholder="XXXX"
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>{t.village}</label>
+                  <input
+                    type="text"
+                    value={form.village}
+                    onChange={(e) => setForm({ ...form, village: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t.district}</label>
+                  <input
+                    type="text"
+                    value={form.district}
+                    onChange={(e) => setForm({ ...form, district: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>{t.state}</label>
+                  <input
+                    type="text"
+                    value={form.state}
+                    onChange={(e) => setForm({ ...form, state: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t.pincode}</label>
+                  <input
+                    type="text"
+                    value={form.pincode}
+                    onChange={(e) => setForm({ ...form, pincode: e.target.value })}
+                    maxLength={6}
+                  />
+                </div>
+              </div>
+              <div className="profile-form-actions">
+                <button className="save-btn" onClick={handleSave} disabled={saving}>
+                  {saving ? t.saving : t.saveChanges}
+                </button>
+                <button className="cancel-btn" onClick={() => setEditing(false)}>{t.cancel}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="profile-info-grid">
+              <InfoRow label={t.fullName} value={profile?.name} />
+              <InfoRow label={t.phone} value={profile?.phone_number} />
+              <InfoRow label={t.aadhaar} value={form.aadhaar_last4 ? `XXXX-XXXX-${form.aadhaar_last4}` : undefined} />
+              <InfoRow label={t.village} value={profile?.owner?.village} />
+              <InfoRow label={t.district} value={profile?.owner?.district} />
+              <InfoRow label={t.state} value={profile?.owner?.state} />
+              <InfoRow label={t.pincode} value={profile?.owner?.pincode} />
+            </div>
           )}
         </div>
-
-        {editing ? (
-          <div className="profile-form">
-            <div className="form-group">
-              <label>{t.fullName}</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>{t.aadhaarLast4}</label>
-              <input
-                type="text"
-                value={form.aadhaar_last4}
-                onChange={(e) => setForm({ ...form, aadhaar_last4: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                maxLength={4}
-                placeholder="XXXX"
-              />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>{t.village}</label>
-                <input
-                  type="text"
-                  value={form.village}
-                  onChange={(e) => setForm({ ...form, village: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t.district}</label>
-                <input
-                  type="text"
-                  value={form.district}
-                  onChange={(e) => setForm({ ...form, district: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>{t.state}</label>
-                <input
-                  type="text"
-                  value={form.state}
-                  onChange={(e) => setForm({ ...form, state: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>{t.pincode}</label>
-                <input
-                  type="text"
-                  value={form.pincode}
-                  onChange={(e) => setForm({ ...form, pincode: e.target.value })}
-                  maxLength={6}
-                />
-              </div>
-            </div>
-            <div className="profile-form-actions">
-              <button className="save-btn" onClick={handleSave} disabled={saving}>
-                {saving ? t.saving : t.saveChanges}
-              </button>
-              <button className="cancel-btn" onClick={() => setEditing(false)}>{t.cancel}</button>
-            </div>
-          </div>
-        ) : (
-          <div className="profile-info-grid">
-            <InfoRow label={t.fullName} value={profile?.name} />
-            <InfoRow label={t.phone} value={profile?.phone_number} />
-            <InfoRow label={t.aadhaar} value={form.aadhaar_last4 ? `XXXX-XXXX-${form.aadhaar_last4}` : undefined} />
-            <InfoRow label={t.village} value={profile?.owner?.village} />
-            <InfoRow label={t.district} value={profile?.owner?.district} />
-            <InfoRow label={t.state} value={profile?.owner?.state} />
-            <InfoRow label={t.pincode} value={profile?.owner?.pincode} />
-          </div>
-        )}
       </div>
     </div>
   );

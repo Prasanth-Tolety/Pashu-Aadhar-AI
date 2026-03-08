@@ -100,19 +100,12 @@ async function fullScan(tableName: string, projection?: string): Promise<Record<
 
 // ─── 1. Overall Summary ─────────────────────────────────────────────
 async function getSummary() {
-  const [animals, owners, sessions] = await Promise.all([
-    fullScan(ANIMALS_TABLE, 'livestock_id, #s, species, enrolled_at, breed'),
+  // Scan animals with 'state' as reserved word, sessions with 'status' as reserved word
+  const [animalsFull, owners, sessionsFull] = await Promise.all([
+    scanWithReserved(ANIMALS_TABLE, 'livestock_id, #s, species, enrolled_at, breed, gender', { '#s': 'state' }),
     fullScan(OWNERS_TABLE, 'owner_id, created_at'),
-    fullScan(ENROLLMENT_SESSIONS_TABLE, 'session_id, #s, started_at'),
-  ].map((p, i) => {
-    // Use ExpressionAttributeNames for reserved words only for tables needing 'status'
-    if (i === 0 || i === 2) return p; // we'll handle it inline
-    return p;
-  }));
-
-  // We need to handle 'status' as reserved keyword — let's re-scan with proper params
-  const animalsFull = await scanWithReserved(ANIMALS_TABLE, 'livestock_id, #s, species, enrolled_at, breed, gender', { '#s': 'state' });
-  const sessionsFull = await scanWithReserved(ENROLLMENT_SESSIONS_TABLE, 'session_id, #s, started_at, agent_id', { '#s': 'status' });
+    scanWithReserved(ENROLLMENT_SESSIONS_TABLE, 'session_id, #s, started_at, agent_id', { '#s': 'status' }),
+  ]);
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();

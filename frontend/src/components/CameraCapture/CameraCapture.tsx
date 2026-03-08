@@ -38,6 +38,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   const [isCapturing, setIsCapturing] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [toasts, setToasts] = useState<string[]>([]);
+  const [cowDetected, setCowDetected] = useState(false);
 
   // ─── Refs for non-render state ─────────────────────────────────────
   const muzzleStableStartRef = useRef<number | null>(null);
@@ -85,6 +86,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
     cow.stopDetection();
 
     setMuzzleLocked(false);
+    setCowDetected(false);
     setIsCapturing(false);
     setIsPreviewing(false);
     setMuzzlePreview(null);
@@ -136,11 +138,12 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
       // If capture animation is playing, don't touch detections
       if (capturingRef.current) return;
 
-      // ── Grab latest cow detection ──
-      const cowDet = cow.bestDetection;
+      // ── Grab latest cow detection from mutable ref (not stale React state) ──
+      const cowDet = cow.bestDetectionRef.current;
 
       // ── If cow changed significantly or lost, reset muzzle tracking ──
       if (!cowDet) {
+        setCowDetected(false);
         muzzleDet.clearMuzzle();
         muzzleStableStartRef.current = null;
         if (muzzleLocked) setMuzzleLocked(false);
@@ -167,9 +170,10 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
         }
       }
       lastCowBoxRef.current = cowDet;
+      setCowDetected(true);
 
       // ── Run muzzle detection on this cow (async, non-blocking) ──
-      let muzzle = muzzleDet.muzzleDetection;
+      let muzzle = muzzleDet.muzzleDetectionRef.current;
       try {
         const freshMuzzle = await muzzleDet.detectMuzzle(video, cowDet);
         muzzle = freshMuzzle ?? null;
@@ -467,7 +471,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
           try {
             const preview = getMuzzleCropPreview(video, snapshotMuzzle);
             const mFile = await cropMuzzleFromVideo(video, snapshotMuzzle);
-            const cFile = await captureCowPhoto(video, cow.bestDetection);
+            const cFile = await captureCowPhoto(video, cow.bestDetectionRef.current);
             setMuzzlePreview(preview);
             setMuzzleFile(mFile);
             setCowFile(cFile);
@@ -491,19 +495,20 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
 
   // ─── User actions ──────────────────────────────────────────────────
   const handleCaptureMuzzle = useCallback(() => {
-    // Use locked muzzle if available, else current detection, else heuristic
+    // Use locked muzzle if available, else current detection ref, else heuristic
+    const currentCow = cow.bestDetectionRef.current;
     const muzzle = lockedMuzzleRef.current
-      ?? muzzleDet.muzzleDetection
-      ?? (cow.bestDetection ? {
-        x: cow.bestDetection.x + cow.bestDetection.width * 0.2,
-        y: cow.bestDetection.y + cow.bestDetection.height * 0.5,
-        width: cow.bestDetection.width * 0.6,
-        height: cow.bestDetection.height * 0.5,
+      ?? muzzleDet.muzzleDetectionRef.current
+      ?? (currentCow ? {
+        x: currentCow.x + currentCow.width * 0.2,
+        y: currentCow.y + currentCow.height * 0.5,
+        width: currentCow.width * 0.6,
+        height: currentCow.height * 0.5,
         confidence: 0.4,
       } : null);
 
     if (muzzle) doCapture(muzzle);
-  }, [muzzleDet.muzzleDetection, cow.bestDetection, doCapture]);
+  }, [doCapture]);
 
   const handleAcceptCapture = useCallback(() => {
     if (muzzleFile && cowFile) {
@@ -529,13 +534,13 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
     if (modelError) return { text: `⚠️ ${modelError}`, cls: 'status-error' };
     if (isCapturing) return { text: '📸 Capturing muzzle...', cls: 'status-capturing' };
     if (isPreviewing) return { text: '✅ Muzzle captured!', cls: 'status-good' };
-    if (!cow.bestDetection) return { text: `🔍 ${t.lookingForAnimal || 'Looking for cattle...'}`, cls: 'status-searching' };
+    if (!cowDetected) return { text: `🔍 ${t.lookingForAnimal || 'Looking for cattle...'}`, cls: 'status-searching' };
     if (muzzleLocked) {
       if (quality?.approved) return { text: '✅ Muzzle locked — tap Capture!', cls: 'status-good' };
       return { text: '🔒 Muzzle locked — tap Capture or improve quality', cls: 'status-good' };
     }
     if (muzzleDet.muzzleDetection) return { text: '👃 Muzzle found — hold steady to lock...', cls: 'status-detected' };
-    if (cow.bestDetection) {
+    if (cowDetected) {
       const tip = quality?.suggestions[0] || 'Finding muzzle...';
       return { text: `🐄 Cow detected — ${tip}`, cls: 'status-detected' };
     }
@@ -544,7 +549,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
   const status = getStatusInfo();
 
   // ─── Which pipeline dots are active? ───────────────────────────────
-  const hasCow = !!cow.bestDetection;
+  const hasCow = cowDetected;
   const hasMuzzle = !!muzzleDet.muzzleDetection || muzzleLocked;
   const hasQuality = hasMuzzle && (quality?.score ?? 0) > 0;
 
@@ -622,10 +627,10 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
               <button
                 className="btn btn-secondary camera-capture-btn"
                 onClick={handleCaptureMuzzle}
-                disabled={!isReady || anyLoading || isCapturing || !cow.bestDetection}
+                disabled={!isReady || anyLoading || isCapturing || !cowDetected}
                 aria-label="Capture muzzle"
               >
-                {muzzleLocked ? '📸 Capture Muzzle' : cow.bestDetection ? '📸 Capture' : (t.captureBtn || 'Capture')}
+                {muzzleLocked ? '📸 Capture Muzzle' : cowDetected ? '📸 Capture' : (t.captureBtn || 'Capture')}
               </button>
             </div>
 

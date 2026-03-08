@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -41,6 +41,28 @@ export default function Home() {
   const farmersRegistered = useCountUp(3650, 2000, statsVisible);
   const statesCovered = useCountUp(18, 1500, statsVisible);
   const accuracy = useCountUp(97, 1800, statsVisible);
+
+  // ─── Rolling News Cards ───────────────────────────────────────────
+  const NEWS_CARDS = [
+    { icon: '🛡️', tag: 'Insurance Fraud', title: 'Duplicate cattle claims cost ₹350 Cr annually', desc: 'Without biometric identity, the same animal is insured multiple times across states. Pashu Aadhaar prevents this with unique muzzle-print matching.' },
+    { icon: '📋', tag: 'Missing Records', title: 'Over 60% of cattle lack any health records', desc: 'Vaccination, deworming, and disease history are undocumented for most livestock, creating public health risks.' },
+    { icon: '🔍', tag: 'Missing Cattle', title: '5 lakh+ cattle reported missing every year', desc: 'Without a national ID system, stolen or lost cattle are nearly impossible to trace or return to rightful owners.' },
+    { icon: '🏥', tag: 'Health Crisis', title: 'Lumpy Skin Disease: No tracking infra', desc: 'The 2022 LSD outbreak killed 1.8 lakh cattle. Lack of digital tracking delayed response across state borders.' },
+    { icon: '💰', tag: 'Loan Fraud', title: 'Same animal used as collateral for multiple loans', desc: "Banks lose crores when duplicate animals are pledged. Pashu Aadhaar's unique ID prevents collateral fraud." },
+    { icon: '📊', tag: 'Census Gap', title: 'Livestock census is outdated by 5+ years', desc: 'Government planning depends on stale data. Real-time digital enrollment provides live population statistics.' },
+  ];
+
+  const [newsIdx, setNewsIdx] = useState(0);
+  const newsTimerRef = useRef<ReturnType<typeof setInterval>>();
+
+  const nextNews = useCallback(() => {
+    setNewsIdx(prev => (prev + 1) % NEWS_CARDS.length);
+  }, [NEWS_CARDS.length]);
+
+  useEffect(() => {
+    newsTimerRef.current = setInterval(nextNews, 4000);
+    return () => clearInterval(newsTimerRef.current);
+  }, [nextNews]);
 
   return (
     <div className="landing">
@@ -157,6 +179,46 @@ export default function Home() {
             <span className="live-stat-number">{accuracy}%</span>
             <span className="live-stat-label">{t.matchAccuracy}</span>
           </div>
+        </div>
+      </section>
+
+      {/* Rolling News Cards — Domain Problems */}
+      <section className="news-carousel-section">
+        <h2 className="section-title">🚨 Why India Needs Pashu Aadhaar</h2>
+        <p className="section-desc">Real problems in livestock management that digital identity solves</p>
+        <div className="news-carousel">
+          {NEWS_CARDS.map((card, i) => {
+            const offset = (i - newsIdx + NEWS_CARDS.length) % NEWS_CARDS.length;
+            const isActive = offset === 0;
+            const isNext = offset === 1 || offset === NEWS_CARDS.length - 1;
+            return (
+              <div
+                key={i}
+                className={`news-card ${isActive ? 'news-active' : ''} ${isNext ? 'news-near' : ''}`}
+                style={{
+                  transform: `translateX(${(offset > NEWS_CARDS.length / 2 ? offset - NEWS_CARDS.length : offset) * 110}%) scale(${isActive ? 1 : isNext ? 0.88 : 0.76})`,
+                  opacity: isActive ? 1 : isNext ? 0.5 : 0.18,
+                  zIndex: isActive ? 10 : isNext ? 5 : 1,
+                }}
+                onClick={() => { clearInterval(newsTimerRef.current); setNewsIdx(i); newsTimerRef.current = setInterval(nextNews, 4000); }}
+              >
+                <span className="news-icon">{card.icon}</span>
+                <span className="news-tag">{card.tag}</span>
+                <h3 className="news-title">{card.title}</h3>
+                {isActive && <p className="news-desc">{card.desc}</p>}
+              </div>
+            );
+          })}
+        </div>
+        <div className="news-dots">
+          {NEWS_CARDS.map((_, i) => (
+            <button
+              key={i}
+              className={`news-dot ${i === newsIdx ? 'active' : ''}`}
+              onClick={() => { clearInterval(newsTimerRef.current); setNewsIdx(i); newsTimerRef.current = setInterval(nextNews, 4000); }}
+              aria-label={`News ${i + 1}`}
+            />
+          ))}
         </div>
       </section>
 

@@ -34,6 +34,7 @@ aws s3 sync dist/ s3://$WEBSITE_BUCKET/ \
   --region $AWS_REGION \
   --delete \
   --exclude "index.html" \
+  --exclude "models/*" \
   --cache-control "max-age=31536000,public"
 
 # ===============================
