@@ -41,14 +41,27 @@ async function clearTable(tableName, pk) {
   let deleted = 0;
 
   do {
-    const result = await ddbClient.send(new ScanCommand({
-      TableName: tableName,
-      ProjectionExpression: pk,
-      ExclusiveStartKey: lastKey,
-    }));
+    let scanResult;
+    let scanRetries = 0;
+    while (scanRetries < 5) {
+      try {
+        scanResult = await ddbClient.send(new ScanCommand({
+          TableName: tableName,
+          ProjectionExpression: pk,
+          ExclusiveStartKey: lastKey,
+        }));
+        break;
+      } catch (err) {
+        if (err.name === 'ProvisionedThroughputExceededException' || err.message?.includes('throughput')) {
+          scanRetries++;
+          await new Promise(r => setTimeout(r, 500 * Math.pow(2, scanRetries)));
+        } else throw err;
+      }
+    }
+    if (!scanResult) throw new Error(`Failed to scan ${tableName} after retries`);
 
-    const items = result.Items || [];
-    lastKey = result.LastEvaluatedKey;
+    const items = scanResult.Items || [];
+    lastKey = scanResult.LastEvaluatedKey;
 
     // Filter to only seed items if not CLEAR_ALL
     const toDelete = CLEAR_ALL
@@ -68,16 +81,35 @@ async function clearTable(tableName, pk) {
           );
         });
 
-    // Batch delete (max 25)
+    // Batch delete (max 25) with retry
     for (let i = 0; i < toDelete.length; i += 25) {
       const batch = toDelete.slice(i, i + 25).map(item => ({
         DeleteRequest: { Key: { [pk]: item[pk] } },
       }));
 
       if (batch.length > 0) {
-        await ddbClient.send(new BatchWriteCommand({
-          RequestItems: { [tableName]: batch },
-        }));
+        let retries = 0;
+        let unprocessed = { [tableName]: batch };
+        while (unprocessed[tableName] && unprocessed[tableName].length > 0 && retries < 8) {
+          try {
+            const result = await ddbClient.send(new BatchWriteCommand({
+              RequestItems: unprocessed,
+            }));
+            const leftover = result.UnprocessedItems || {};
+            if (leftover[tableName] && leftover[tableName].length > 0) {
+              unprocessed = leftover;
+              retries++;
+              await new Promise(r => setTimeout(r, 200 * Math.pow(2, retries)));
+            } else {
+              break;
+            }
+          } catch (err) {
+            if (err.name === 'ProvisionedThroughputExceededException' || err.message?.includes('throughput')) {
+              retries++;
+              await new Promise(r => setTimeout(r, 500 * Math.pow(2, retries)));
+            } else throw err;
+          }
+        }
         deleted += batch.length;
       }
     }

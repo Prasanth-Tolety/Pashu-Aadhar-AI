@@ -354,6 +354,18 @@
   color: #333;
 }
 
+.view-all-link {
+  font-size: 0.9rem;
+  color: #1a237e;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.view-all-link:hover {
+  color: #3949ab;
+  text-decoration: underline;
+}
+
 .action-card {
   display: flex;
   align-items: center;

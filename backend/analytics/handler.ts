@@ -102,7 +102,7 @@ async function fullScan(tableName: string, projection?: string): Promise<Record<
 async function getSummary() {
   // Scan animals with 'state' as reserved word, sessions with 'status' as reserved word
   const [animalsFull, owners, sessionsFull] = await Promise.all([
-    scanWithReserved(ANIMALS_TABLE, 'livestock_id, #s, species, enrolled_at, breed, gender', { '#s': 'state' }),
+    scanWithReserved(ANIMALS_TABLE, 'livestock_id, #s, species, enrolled_at, breed, gender, owner_id, owner_name, village, image_key', { '#s': 'state' }),
     fullScan(OWNERS_TABLE, 'owner_id, created_at'),
     scanWithReserved(ENROLLMENT_SESSIONS_TABLE, 'session_id, #s, started_at, agent_id', { '#s': 'status' }),
   ]);
@@ -133,17 +133,36 @@ async function getSummary() {
   // Unique agents
   const uniqueAgents = new Set(sessionsFull.map(s => s.agent_id).filter(Boolean)).size;
 
+  // Active states (states with at least 1 animal)
+  const stateSet = new Set<string>();
+  animalsFull.forEach(a => {
+    const s = (a.state as string);
+    if (s) stateSet.add(s);
+  });
+  const activeStates = stateSet.size;
+
+  // Recent animals (last 20, sorted by enrolled_at desc) for admin dashboard preview
+  const sortedAnimals = [...animalsFull]
+    .filter(a => a.enrolled_at)
+    .sort((a, b) => ((b.enrolled_at as string) || '').localeCompare((a.enrolled_at as string) || ''))
+    .slice(0, 20);
+
   return buildResponse(200, {
     total_animals: animalsFull.length,
+    totalAnimals: animalsFull.length,
     total_farmers: owners.length,
+    totalFarmers: owners.length,
     total_sessions: sessionsFull.length,
     completed_sessions: completedSessions,
     active_sessions: activeSessions,
     unique_agents: uniqueAgents,
+    totalAgents: uniqueAgents,
+    activeStates,
     enrollments_last_30_days: recentEnrollments,
     enrollments_last_7_days: weeklyEnrollments,
     gender_distribution: genderDist,
     species_distribution: speciesDist,
+    recentAnimals: sortedAnimals,
   }, ALLOWED_ORIGIN);
 }
 

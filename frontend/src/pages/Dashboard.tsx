@@ -10,6 +10,7 @@ import {
   getMyAccessRequests,
   resolveAccessRequest,
   requestAccess,
+  getAnalyticsSummary,
 } from '../services/api';
 import { Animal, AccessRequest, ROLE_CONFIG, UserRole } from '../types';
 import axios from 'axios';
@@ -40,6 +41,16 @@ export default function Dashboard() {
 
   // Dashboard tabs
   const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'search'>('overview');
+
+  // Gov/Admin analytics summary
+  const [analyticsSummary, setAnalyticsSummary] = useState<{
+    totalAnimals?: number;
+    totalFarmers?: number;
+    totalAgents?: number;
+    activeStates?: number;
+    avgFraudScore?: number;
+    recentAnimals?: Animal[];
+  }>({});
 
   const role = user?.role as UserRole;
   const roleConfig = role ? ROLE_CONFIG[role] : null;
@@ -78,7 +89,22 @@ export default function Dashboard() {
         setAccessibleAnimals(accessible);
         setMyRequests(requests);
       }
-      // Gov/Admin: no pre-load, can search any
+      // Gov/Admin: load analytics summary for dashboard stats
+      else if (isGovOrAdmin) {
+        try {
+          const summary = await getAnalyticsSummary(idToken);
+          setAnalyticsSummary({
+            totalAnimals: summary.totalAnimals ?? 0,
+            totalFarmers: summary.totalFarmers ?? 0,
+            totalAgents: summary.totalAgents ?? 0,
+            activeStates: summary.activeStates ?? 0,
+            avgFraudScore: summary.avgFraudScore ?? 0,
+            recentAnimals: summary.recentAnimals ?? [],
+          });
+        } catch {
+          // If analytics fails, fall back silently
+        }
+      }
     } catch {
       setError(t.failedToLoadDashboard);
     } finally {
@@ -242,18 +268,19 @@ export default function Dashboard() {
                   <>
                     <div className="summary-card">
                       <span className="summary-icon">🐄</span>
-                      <div><span className="summary-value">—</span><span className="summary-label">Total Animals</span></div>
+                      <div><span className="summary-value">{analyticsSummary.totalAnimals ?? '...'}</span><span className="summary-label">Total Animals</span></div>
                     </div>
                     <div className="summary-card">
                       <span className="summary-icon">🧑‍🌾</span>
-                      <div><span className="summary-value">—</span><span className="summary-label">Total Farmers</span></div>
+                      <div><span className="summary-value">{analyticsSummary.totalFarmers ?? '...'}</span><span className="summary-label">Total Farmers</span></div>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-icon">�</span>
+                      <div><span className="summary-value">{analyticsSummary.totalAgents ?? '...'}</span><span className="summary-label">Enrollment Agents</span></div>
                     </div>
                     <div className="summary-card">
                       <span className="summary-icon">🗺️</span>
-                      <div>
-                        <Link to="/gov-dashboard" className="summary-link">View Analytics →</Link>
-                        <span className="summary-label">Full Dashboard</span>
-                      </div>
+                      <div><span className="summary-value">{analyticsSummary.activeStates ?? '...'}</span><span className="summary-label">Active States</span></div>
                     </div>
                   </>
                 )}
@@ -280,8 +307,8 @@ export default function Dashboard() {
               </Link>
               {isGovOrAdmin && (
                 <Link to="/gov-dashboard" className="action-card enroll-action" style={{ background: 'linear-gradient(135deg, #1a237e, #283593)' }}>
-                  <span className="action-icon">🗺️</span>
-                  <span className="action-label">Analytics Dashboard</span>
+                  <span className="action-icon">�</span>
+                  <span className="action-label">Full Analytics Dashboard</span>
                 </Link>
               )}
             </section>
@@ -324,6 +351,37 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* Gov/Admin: Recent Enrollments */}
+            {isGovOrAdmin && analyticsSummary.recentAnimals && analyticsSummary.recentAnimals.length > 0 && (
+              <section className="animals-section">
+                <div className="section-title-row">
+                  <h2>📋 Recent Enrollments</h2>
+                  <Link to="/gov-dashboard" className="view-all-link">View Full Analytics →</Link>
+                </div>
+                <div className="animals-grid">
+                  {analyticsSummary.recentAnimals.map((animal: Animal) => (
+                    <Link key={animal.livestock_id} to={`/animals/${animal.livestock_id}`} className="animal-card">
+                      {animal.photo_url && (
+                        <div className="animal-card-photo">
+                          <img src={animal.photo_url} alt={animal.species || 'Animal'} />
+                        </div>
+                      )}
+                      <div className="animal-card-header">
+                        <span className="animal-id">{animal.livestock_id}</span>
+                        <span className="animal-species">{animal.species || '🐄'}</span>
+                      </div>
+                      <div className="animal-card-body">
+                        <p><strong>{t.breed}:</strong> {animal.breed || t.unknown}</p>
+                        <p><strong>{t.gender}:</strong> {animal.gender || t.unknown}</p>
+                        <p><strong>Owner:</strong> {animal.owner_name || animal.owner_id || t.unknown}</p>
+                        <p><strong>State:</strong> {animal.state || t.unknown}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </section>
             )}
 
