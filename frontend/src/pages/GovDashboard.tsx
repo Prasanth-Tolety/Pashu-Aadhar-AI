@@ -113,7 +113,7 @@ function useCounter(target: number, duration = 1500) {
 }
 
 export default function GovDashboard() {
-  const { idToken } = useAuth();
+  const { idToken, user } = useAuth();
 
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [states, setStates] = useState<StateData[]>([]);
@@ -124,7 +124,7 @@ export default function GovDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedState, setSelectedState] = useState<StateData | null>(null);
-  const [activeVizTab, setActiveVizTab] = useState<'map' | 'trends' | 'breeds' | 'fraud' | 'agents'>('map');
+  const [activeVizTab, setActiveVizTab] = useState<'map' | 'trends' | 'breeds' | 'fraud' | 'agents' | 'logs'>('map');
 
   const loadAll = useCallback(async () => {
     if (!idToken) return;
@@ -285,6 +285,7 @@ export default function GovDashboard() {
           { id: 'breeds' as const, label: '🐮 Breeds' },
           { id: 'fraud' as const, label: '🛡️ Fraud' },
           { id: 'agents' as const, label: '👥 Agents' },
+          ...(user?.role === 'admin' ? [{ id: 'logs' as const, label: '📋 Logs' }] : []),
         ].map(tab => (
           <button
             key={tab.id}
@@ -691,6 +692,39 @@ export default function GovDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── LOGS TAB (Admin only) ─── */}
+      {activeVizTab === 'logs' && user?.role === 'admin' && (
+        <div className="viz-panel fade-in">
+          <h2>📋 CloudWatch Logs</h2>
+          <p style={{ color: '#78909c', marginBottom: '1.2rem' }}>Direct links to Lambda log groups in AWS CloudWatch (us-east-1).</p>
+          <div className="logs-grid">
+            {[
+              { name: 'Enroll',              fn: 'pashu-aadhaar-enroll-prod' },
+              { name: 'Animals',             fn: 'pashu-aadhaar-animals-prod' },
+              { name: 'Analytics',           fn: 'pashu-aadhaar-analytics-prod' },
+              { name: 'Profile',             fn: 'pashu-aadhaar-profile-prod' },
+              { name: 'Post-Confirmation',   fn: 'pashu-aadhaar-post-confirmation-prod' },
+              { name: 'Access Requests',     fn: 'pashu-aadhaar-access-requests-prod' },
+              { name: 'Enrollment Sessions', fn: 'pashu-aadhaar-enrollment-sessions-prod' },
+              { name: 'Get Upload URL',      fn: 'pashu-aadhaar-get-upload-url-prod' },
+            ].map(svc => {
+              const logGroup = encodeURIComponent(encodeURIComponent(`/aws/lambda/${svc.fn}`));
+              const url = `https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/${logGroup}`;
+              return (
+                <a key={svc.fn} href={url} target="_blank" rel="noopener noreferrer" className="log-link-card">
+                  <span className="log-icon">📄</span>
+                  <div>
+                    <span className="log-name">{svc.name}</span>
+                    <span className="log-fn">/aws/lambda/{svc.fn}</span>
+                  </div>
+                  <span className="log-arrow">↗</span>
+                </a>
+              );
+            })}
           </div>
         </div>
       )}

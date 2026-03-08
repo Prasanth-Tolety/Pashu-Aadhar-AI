@@ -102,6 +102,17 @@ export interface EnrollmentResponse {
   message?: string;
 }
 
+// ─── Verification ────────────────────────────────────────────────────
+export interface VerifyResponse {
+  status: 'FOUND' | 'NOT_FOUND';
+  livestock_id?: string;
+  similarity: number;
+  embedding?: number[];
+  enrolled_at?: string;
+  animal?: Partial<Animal> | null;
+  message?: string;
+}
+
 export interface ApiError {
   error: string;
   message: string;
@@ -154,6 +165,10 @@ export interface Animal {
   status?: string;
   created_at?: string;
   updated_at?: string;
+  // Fraud score (from fraud_scores table, included when fetching single animal)
+  fraud_risk_score?: number;
+  risk_level?: string;
+  fraud_flags?: string[];
 }
 
 // ─── Access Request ──────────────────────────────────────────────────

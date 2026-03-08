@@ -6,6 +6,7 @@ import { DynamoDBDocumentClient, PutCommand, QueryCommand, ScanCommand } from '@
 import { Client as OpenSearchClient } from '@opensearch-project/opensearch';
 import { AwsSigv4Signer } from '@opensearch-project/opensearch/aws';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   createLogger,
   buildResponse,
@@ -203,14 +204,141 @@ async function storeNewEmbedding(livestockId: string, embedding: number[], image
 }
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-  logger.info('Received enrollment request', {
+  logger.info('Received request', {
     requestId: event.requestContext.requestId,
+    path: event.path,
+    method: event.httpMethod,
   });
 
   if (event.httpMethod === 'OPTIONS') {
     return buildResponse(200, {}, ALLOWED_ORIGIN);
   }
 
+  // Route to verify handler
+  if (event.path === '/verify') {
+    return handleVerify(event);
+  }
+
+  // Default: enrollment
+  return handleEnroll(event);
+}
+
+// ─── Verify Handler ──────────────────────────────────────────────────
+async function handleVerify(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  if (!event.body) {
+    return buildErrorResponse(400, 'MISSING_BODY', 'Request body is required', ALLOWED_ORIGIN);
+  }
+
+  let body: { imageKey?: unknown };
+  try {
+    body = JSON.parse(event.body) as typeof body;
+  } catch {
+    return buildErrorResponse(400, 'INVALID_JSON', 'Invalid JSON in request body', ALLOWED_ORIGIN);
+  }
+
+  if (!validateImageKey(body.imageKey)) {
+    return buildErrorResponse(400, 'INVALID_IMAGE_KEY', 'Invalid or missing imageKey', ALLOWED_ORIGIN);
+  }
+
+  const imageKey = body.imageKey as string;
+
+  if (!BUCKET_NAME || !SAGEMAKER_ENDPOINT || !OPENSEARCH_ENDPOINT) {
+    return buildErrorResponse(500, 'CONFIGURATION_ERROR', 'Server configuration error', ALLOWED_ORIGIN);
+  }
+
+  try {
+    logger.info('Verify: Retrieving image from S3', { imageKey });
+    const imageBuffer = await getImageFromS3(imageKey);
+
+    logger.info('Verify: Generating embedding via SageMaker', { imageKey });
+    const embedding = await getEmbeddingFromSageMaker(imageBuffer);
+
+    logger.info('Verify: Searching for similar embeddings');
+    const searchResult = await searchSimilarEmbeddings(embedding);
+    const topHit = searchResult.hits.hits[0] || null;
+    const similarity = topHit ? topHit._score : 0;
+
+    if (topHit && similarity >= SIMILARITY_THRESHOLD) {
+      // Found a match — fetch the animal record from DynamoDB
+      const livestockId = topHit._source.livestock_id;
+      let animalRecord: Record<string, unknown> | null = null;
+      try {
+        const ddbResult = await ddbClient.send(new QueryCommand({
+          TableName: ANIMALS_TABLE,
+          KeyConditionExpression: 'livestock_id = :lid',
+          ExpressionAttributeValues: { ':lid': livestockId },
+          Limit: 1,
+        }));
+        animalRecord = (ddbResult.Items?.[0] as Record<string, unknown>) || null;
+      } catch {
+        // Fallback: just use OpenSearch data
+      }
+
+      // Generate presigned URLs for photos
+      let photo_url: string | undefined;
+      let muzzle_url: string | undefined;
+      try {
+        const photoKey = (animalRecord?.photo_key || animalRecord?.image_key) as string | undefined;
+        if (photoKey && BUCKET_NAME) {
+          photo_url = await getSignedUrl(s3Client,
+            new GetObjectCommand({ Bucket: BUCKET_NAME, Key: photoKey }),
+            { expiresIn: 3600 });
+        }
+        const muzzleKey = (animalRecord?.muzzle_key) as string | undefined;
+        if (muzzleKey && BUCKET_NAME) {
+          muzzle_url = await getSignedUrl(s3Client,
+            new GetObjectCommand({ Bucket: BUCKET_NAME, Key: muzzleKey }),
+            { expiresIn: 3600 });
+        }
+      } catch {
+        // Non-fatal
+      }
+
+      logger.info('Verify: Match found', { livestock_id: livestockId, similarity });
+      return buildResponse(200, {
+        status: 'FOUND',
+        livestock_id: livestockId,
+        similarity,
+        embedding: topHit._source.embedding,
+        enrolled_at: topHit._source.enrolled_at,
+        animal: animalRecord ? {
+          livestock_id: animalRecord.livestock_id,
+          species: animalRecord.species,
+          breed: animalRecord.breed,
+          gender: animalRecord.gender,
+          age_months: animalRecord.age_months,
+          owner_id: animalRecord.owner_id,
+          owner_name: animalRecord.owner_name,
+          village: animalRecord.village,
+          district: animalRecord.district,
+          state: animalRecord.state,
+          status: animalRecord.status,
+          enrolled_at: animalRecord.enrolled_at,
+          photo_url,
+          muzzle_url,
+        } : null,
+        message: 'Animal found in the system',
+      }, ALLOWED_ORIGIN);
+    }
+
+    logger.info('Verify: No match found', { similarity });
+    return buildResponse(200, {
+      status: 'NOT_FOUND',
+      similarity,
+      message: 'No matching animal found in the system',
+    }, ALLOWED_ORIGIN);
+  } catch (err) {
+    logger.error('Verification failed', err);
+    if (err instanceof Error && (err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT') || err.name === 'ConnectionError' || err.name === 'TimeoutError')) {
+      return buildErrorResponse(503, 'OPENSEARCH_UNAVAILABLE', 'Search service is temporarily unavailable', ALLOWED_ORIGIN);
+    }
+    const message = err instanceof Error ? err.message : 'Verification failed';
+    return buildErrorResponse(500, 'VERIFY_ERROR', message, ALLOWED_ORIGIN);
+  }
+}
+
+// ─── Enroll Handler ──────────────────────────────────────────────────
+async function handleEnroll(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   if (!event.body) {
     return buildErrorResponse(400, 'MISSING_BODY', 'Request body is required', ALLOWED_ORIGIN);
   }

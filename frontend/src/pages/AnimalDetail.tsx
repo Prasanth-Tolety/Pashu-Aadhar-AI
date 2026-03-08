@@ -6,7 +6,9 @@ import { ROLE_CONFIG, UserRole } from '../types';
 import { getUploadUrl, updateAnimal as apiUpdateAnimal } from '../services/api';
 import { uploadToS3 } from '../services/s3';
 import axios from 'axios';
+import QRCodeCard from '../components/QRCodeCard';
 import '../styles/AnimalDetail.css';
+import '../styles/QRCode.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -32,6 +34,10 @@ interface Animal {
   latitude?: number;
   longitude?: number;
   status?: string;
+  // Fraud score (from backend)
+  fraud_risk_score?: number;
+  risk_level?: string;
+  fraud_flags?: string[];
 }
 
 interface HealthRecord {
@@ -147,6 +153,7 @@ export default function AnimalDetail() {
   const role = (user?.role || 'farmer') as UserRole;
   const perms = ROLE_PERMISSIONS[role];
   const roleConfig = ROLE_CONFIG[role];
+  const isGovOrAdmin = role === 'government' || role === 'admin';
 
   const [animal, setAnimal] = useState<Animal | null>(null);
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
@@ -356,6 +363,31 @@ export default function AnimalDetail() {
         )}
       </div>
 
+      {/* Fraud Risk Score — visible to gov/admin only */}
+      {isGovOrAdmin && animal.fraud_risk_score !== undefined && (
+        <div className={`fraud-score-banner risk-${animal.risk_level || 'low'}`}>
+          <div className="fraud-score-left">
+            <span className="fraud-score-icon">
+              {animal.risk_level === 'critical' ? '🚨' : animal.risk_level === 'high' ? '⚠️' : animal.risk_level === 'medium' ? '🔶' : '✅'}
+            </span>
+            <div>
+              <span className="fraud-score-label">Fraud Risk Score</span>
+              <span className="fraud-score-value">{animal.fraud_risk_score.toFixed(1)} / 100</span>
+            </div>
+          </div>
+          <span className={`fraud-risk-badge badge-${animal.risk_level || 'low'}`}>
+            {(animal.risk_level || 'low').toUpperCase()}
+          </span>
+          {animal.fraud_flags && animal.fraud_flags.length > 0 && (
+            <div className="fraud-flags">
+              {animal.fraud_flags.map((f, i) => (
+                <span key={i} className="fraud-flag-chip">🚩 {f.replace(/_/g, ' ')}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="tabs">
         {perms.canViewDetails && (
@@ -418,6 +450,13 @@ export default function AnimalDetail() {
                 </div>
               )}
             </div>
+
+            {/* QR Code for tag / sharing */}
+            <QRCodeCard
+              livestockId={animal.livestock_id}
+              animalName={[animal.species, animal.breed].filter(Boolean).join(' — ')}
+              ownerName={animal.owner_id}
+            />
 
             {perms.canEditDetails && !editing && (
               <button className="edit-details-btn" onClick={() => setEditing(true)}>✏️ {t.editDetails}</button>

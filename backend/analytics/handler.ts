@@ -151,19 +151,30 @@ async function getSummary() {
     .sort((a, b) => ((b.enrolled_at as string) || '').localeCompare((a.enrolled_at as string) || ''))
     .slice(0, 20);
 
-  // Generate presigned URLs for recent animals' photos
+  // Generate presigned URLs for recent animals' photos (with fallback to image_key)
   const recentWithUrls = await Promise.all(
     sortedAnimals.map(async (animal) => {
       const enriched = { ...animal };
       try {
-        if (animal.photo_key && typeof animal.photo_key === 'string' && BUCKET_NAME) {
+        // Prefer photo_key, fall back to image_key for the profile photo
+        const photoSource = (animal.photo_key && typeof animal.photo_key === 'string')
+          ? animal.photo_key as string
+          : (animal.image_key && typeof animal.image_key === 'string')
+            ? animal.image_key as string
+            : null;
+        if (photoSource && BUCKET_NAME) {
           enriched.photo_url = await getSignedUrl(s3Client,
-            new GetObjectCommand({ Bucket: BUCKET_NAME, Key: animal.photo_key as string }),
+            new GetObjectCommand({ Bucket: BUCKET_NAME, Key: photoSource }),
             { expiresIn: 3600 });
         }
         if (animal.muzzle_key && typeof animal.muzzle_key === 'string' && BUCKET_NAME) {
           enriched.muzzle_url = await getSignedUrl(s3Client,
             new GetObjectCommand({ Bucket: BUCKET_NAME, Key: animal.muzzle_key as string }),
+            { expiresIn: 3600 });
+        }
+        if (animal.image_key && typeof animal.image_key === 'string' && BUCKET_NAME) {
+          enriched.image_url = await getSignedUrl(s3Client,
+            new GetObjectCommand({ Bucket: BUCKET_NAME, Key: animal.image_key as string }),
             { expiresIn: 3600 });
         }
       } catch {

@@ -24,6 +24,7 @@ const HEALTH_RECORDS_TABLE = 'health_records';
 const MILK_YIELDS_TABLE = 'milk_yields';
 const INSURANCE_TABLE = 'insurance_policies';
 const LOANS_TABLE = 'loan_collateral';
+const FRAUD_SCORES_TABLE = 'fraud_scores';
 
 /**
  * GET  /animals?owner_id=XXX        → list animals for an owner (farmer dashboard)
@@ -130,14 +131,23 @@ async function getPresignedReadUrl(key: string): Promise<string> {
   return getSignedUrl(s3Client, command, { expiresIn: 3600 });
 }
 
-/** Enrich an animal record with presigned URLs for photo_key and muzzle_key. */
+/** Enrich an animal record with presigned URLs for photo_key, muzzle_key, and image_key. */
 async function enrichAnimalWithUrls(animal: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
-    if (animal.photo_key && typeof animal.photo_key === 'string' && BUCKET_NAME) {
-      animal.photo_url = await getPresignedReadUrl(animal.photo_key as string);
+    // Generate photo_url: prefer photo_key, fall back to image_key
+    const photoSource = (animal.photo_key && typeof animal.photo_key === 'string')
+      ? animal.photo_key as string
+      : (animal.image_key && typeof animal.image_key === 'string')
+        ? animal.image_key as string
+        : null;
+    if (photoSource && BUCKET_NAME) {
+      animal.photo_url = await getPresignedReadUrl(photoSource);
     }
     if (animal.muzzle_key && typeof animal.muzzle_key === 'string' && BUCKET_NAME) {
       animal.muzzle_url = await getPresignedReadUrl(animal.muzzle_key as string);
+    }
+    if (animal.image_key && typeof animal.image_key === 'string' && BUCKET_NAME) {
+      animal.image_url = await getPresignedReadUrl(animal.image_key as string);
     }
   } catch (err) {
     logger.warn('Failed to generate presigned URLs for animal', err);
@@ -179,6 +189,21 @@ async function getAnimal(livestockId: string) {
 
   // Enrich with presigned photo URLs
   const animal = await enrichAnimalWithUrls(result.Item as Record<string, unknown>);
+
+  // Fetch fraud score from fraud_scores table
+  try {
+    const fraudResult = await ddbClient.send(new GetCommand({
+      TableName: FRAUD_SCORES_TABLE,
+      Key: { livestock_id: livestockId },
+    }));
+    if (fraudResult.Item) {
+      animal.fraud_risk_score = fraudResult.Item.fraud_risk_score;
+      animal.risk_level = fraudResult.Item.risk_level;
+      animal.fraud_flags = fraudResult.Item.flags;
+    }
+  } catch (err) {
+    logger.warn('Failed to fetch fraud score (non-fatal)', err);
+  }
 
   // Also get insurance summary
   let insurance = null;

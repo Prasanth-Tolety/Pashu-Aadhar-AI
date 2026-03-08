@@ -265,6 +265,22 @@ Resources:
             Method: OPTIONS
             Auth:
               Authorizer: NONE
+        Verify:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /verify
+            Method: POST
+            Auth:
+              Authorizer: NONE
+        VerifyOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /verify
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:

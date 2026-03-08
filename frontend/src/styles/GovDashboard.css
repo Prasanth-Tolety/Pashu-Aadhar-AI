@@ -608,6 +608,61 @@
   font-size: 1rem;
 }
 
+/* ─── CloudWatch Logs Tab ─────────────────────── */
+.logs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 0.8rem;
+}
+
+.log-link-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem 1.2rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+}
+
+.log-link-card:hover {
+  border-color: #1a237e;
+  box-shadow: 0 2px 8px rgba(26, 35, 126, 0.12);
+  transform: translateY(-1px);
+}
+
+.log-icon {
+  font-size: 1.6rem;
+}
+
+.log-name {
+  display: block;
+  font-weight: 700;
+  color: #1a237e;
+  font-size: 0.95rem;
+}
+
+.log-fn {
+  display: block;
+  font-size: 0.75rem;
+  color: #90a4ae;
+  font-family: monospace;
+  margin-top: 0.1rem;
+}
+
+.log-arrow {
+  margin-left: auto;
+  font-size: 1.1rem;
+  color: #90a4ae;
+}
+
+.log-link-card:hover .log-arrow {
+  color: #1a237e;
+}
+
 /* ─── Footer ──────────────────────────────────── */
 .gov-footer {
   text-align: center;

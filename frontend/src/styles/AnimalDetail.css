@@ -647,3 +647,91 @@
   color: #64748b;
   background: #f1f5f9;
 }
+
+/* ─── Fraud Risk Score Banner ─────────────────── */
+.fraud-score-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.fraud-score-banner.risk-low {
+  background: #e8f5e9;
+  border-left: 4px solid #4caf50;
+}
+
+.fraud-score-banner.risk-medium {
+  background: #fff3e0;
+  border-left: 4px solid #ff9800;
+}
+
+.fraud-score-banner.risk-high {
+  background: #fbe9e7;
+  border-left: 4px solid #f44336;
+}
+
+.fraud-score-banner.risk-critical {
+  background: #f3e5f5;
+  border-left: 4px solid #9c27b0;
+}
+
+.fraud-score-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.fraud-score-icon {
+  font-size: 1.5rem;
+}
+
+.fraud-score-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #546e7a;
+  font-weight: 600;
+}
+
+.fraud-score-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 800;
+  font-family: monospace;
+  color: #263238;
+}
+
+.fraud-risk-badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.badge-low { background: #c8e6c9; color: #2e7d32; }
+.badge-medium { background: #ffe0b2; color: #e65100; }
+.badge-high { background: #ffcdd2; color: #c62828; }
+.badge-critical { background: #e1bee7; color: #6a1b9a; }
+
+.fraud-flags {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.fraud-flag-chip {
+  padding: 0.2rem 0.6rem;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #546e7a;
+  text-transform: capitalize;
+}

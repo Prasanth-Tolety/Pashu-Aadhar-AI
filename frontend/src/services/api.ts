@@ -3,6 +3,7 @@ import {
   UploadUrlResponse,
   EnrollmentRequest,
   EnrollmentResponse,
+  VerifyResponse,
   Animal,
   AccessRequest,
   AnimalFormData,
@@ -31,6 +32,13 @@ export async function getUploadUrl(fileName: string, contentType: string): Promi
 
 export async function enroll(request: EnrollmentRequest, token?: string | null): Promise<EnrollmentResponse> {
   const response = await apiClient.post<EnrollmentResponse>('/enroll', request, {
+    headers: authHeaders(token ?? null),
+  });
+  return response.data;
+}
+
+export async function verifyAnimal(imageKey: string, token?: string | null): Promise<VerifyResponse> {
+  const response = await apiClient.post<VerifyResponse>('/verify', { imageKey }, {
     headers: authHeaders(token ?? null),
   });
   return response.data;

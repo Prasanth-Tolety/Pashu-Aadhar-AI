@@ -14,7 +14,9 @@ import {
 } from '../services/api';
 import { Animal, AccessRequest, ROLE_CONFIG, UserRole } from '../types';
 import axios from 'axios';
+import QRScanner from '../components/QRScanner';
 import '../styles/Dashboard.css';
+import '../styles/QRCode.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -30,6 +32,7 @@ export default function Dashboard() {
   const [searchResult, setSearchResult] = useState<Animal | null>(null);
   const [searchError, setSearchError] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   // Access requests
   const [incomingRequests, setIncomingRequests] = useState<AccessRequest[]>([]);
@@ -40,7 +43,7 @@ export default function Dashboard() {
   const [requestMsg, setRequestMsg] = useState('');
 
   // Dashboard tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'search'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'requests' | 'search' | 'logs'>('overview');
 
   // Gov/Admin analytics summary
   const [analyticsSummary, setAnalyticsSummary] = useState<{
@@ -58,6 +61,7 @@ export default function Dashboard() {
   const isAgent = role === 'enrollment_agent';
   const isVetOrInsurer = role === 'veterinarian' || role === 'insurer';
   const isGovOrAdmin = role === 'government' || role === 'admin';
+  const isAdmin = role === 'admin';
   const rolePrefix = roleConfig?.prefix || 'USR';
   const displayId = user?.ownerId
     ? `${rolePrefix}-${user.ownerId.slice(-7).toUpperCase()}`
@@ -199,13 +203,20 @@ export default function Dashboard() {
         <button className={`dash-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
           📊 {t.overview}
         </button>
-        <button className={`dash-tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
-          📩 {t.requests}
-          {pendingCount > 0 && <span className="tab-badge">{pendingCount}</span>}
-        </button>
+        {!isAdmin && (
+          <button className={`dash-tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>
+            📩 {t.requests}
+            {pendingCount > 0 && <span className="tab-badge">{pendingCount}</span>}
+          </button>
+        )}
         <button className={`dash-tab ${activeTab === 'search' ? 'active' : ''}`} onClick={() => setActiveTab('search')}>
           🔍 {t.search}
         </button>
+        {isAdmin && (
+          <button className={`dash-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
+            📋 Logs
+          </button>
+        )}
       </div>
 
       {/* Main Content */}
@@ -305,6 +316,10 @@ export default function Dashboard() {
                 <span className="action-icon">👤</span>
                 <span className="action-label">{t.myProfile}</span>
               </Link>
+              <Link to="/verify" className="action-card enroll-action" style={{ background: 'linear-gradient(135deg, #1a237e, #0d47a1)' }}>
+                <span className="action-icon">🔍</span>
+                <span className="action-label">Verify Animal</span>
+              </Link>
               {isGovOrAdmin && (
                 <Link to="/gov-dashboard" className="action-card enroll-action" style={{ background: 'linear-gradient(135deg, #1a237e, #283593)' }}>
                   <span className="action-icon">�</span>
@@ -330,11 +345,17 @@ export default function Dashboard() {
                   <div className="animals-grid">
                     {animals.map((animal) => (
                       <Link key={animal.livestock_id} to={`/animals/${animal.livestock_id}`} className="animal-card">
-                        {animal.photo_url && (
-                          <div className="animal-card-photo">
-                            <img src={animal.photo_url} alt={animal.species || 'Animal'} />
-                          </div>
-                        )}
+                        <div className="animal-card-photo">
+                          {(animal.photo_url || animal.muzzle_url) ? (
+                            <img
+                              src={animal.photo_url || animal.muzzle_url}
+                              alt={animal.species || 'Animal'}
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="photo-placeholder">🐄</span>'; }}
+                            />
+                          ) : (
+                            <span className="photo-placeholder">🐄</span>
+                          )}
+                        </div>
                         <div className="animal-card-header">
                           <span className="animal-id">{animal.livestock_id}</span>
                           <span className="animal-species">{animal.species || '🐄'}</span>
@@ -364,11 +385,17 @@ export default function Dashboard() {
                 <div className="animals-grid">
                   {analyticsSummary.recentAnimals.map((animal: Animal) => (
                     <Link key={animal.livestock_id} to={`/animals/${animal.livestock_id}`} className="animal-card">
-                      {animal.photo_url && (
-                        <div className="animal-card-photo">
-                          <img src={animal.photo_url} alt={animal.species || 'Animal'} />
-                        </div>
-                      )}
+                      <div className="animal-card-photo">
+                        {(animal.photo_url || animal.muzzle_url) ? (
+                          <img
+                            src={animal.photo_url || animal.muzzle_url}
+                            alt={animal.species || 'Animal'}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="photo-placeholder">🐄</span>'; }}
+                          />
+                        ) : (
+                          <span className="photo-placeholder">🐄</span>
+                        )}
+                      </div>
                       <div className="animal-card-header">
                         <span className="animal-id">{animal.livestock_id}</span>
                         <span className="animal-species">{animal.species || '🐄'}</span>
@@ -488,8 +515,15 @@ export default function Dashboard() {
               <h2>🔍 {isGovOrAdmin ? t.searchAnyAnimal : t.lookUpAnimal}</h2>
               <form onSubmit={handleSearch} className="search-form">
                 <input type="text" value={searchId} onChange={(e) => setSearchId(e.target.value)} placeholder={t.enterLivestockId} className="search-input" />
+                <button type="button" className="scan-qr-btn" title="Scan QR Code" onClick={() => setShowScanner(true)}>📷</button>
                 <button type="submit" className="search-btn" disabled={searchLoading}>{searchLoading ? t.searching : t.search}</button>
               </form>
+              {showScanner && (
+                <QRScanner
+                  onScan={(val) => { setSearchId(val); setShowScanner(false); }}
+                  onClose={() => setShowScanner(false)}
+                />
+              )}
 
               {searchError && <div className="search-error">{searchError}</div>}
 
@@ -505,6 +539,40 @@ export default function Dashboard() {
                   <Link to={`/animals/${searchResult.livestock_id}`} className="view-details-btn">{t.viewFullDetails}</Link>
                 </div>
               )}
+            </section>
+          </div>
+        )}
+        {/* ─── CloudWatch Logs Tab (Admin only) ─── */}
+        {activeTab === 'logs' && isAdmin && (
+          <div className="tab-panel fade-in">
+            <section className="search-section">
+              <h2>📋 CloudWatch Logs</h2>
+              <p style={{ color: '#78909c', marginBottom: '1rem' }}>Direct links to Lambda log groups in AWS CloudWatch (us-east-1).</p>
+              <div className="logs-grid">
+                {[
+                  { name: 'Enroll', fn: 'pashu-aadhaar-enroll-prod' },
+                  { name: 'Animals', fn: 'pashu-aadhaar-animals-prod' },
+                  { name: 'Analytics', fn: 'pashu-aadhaar-analytics-prod' },
+                  { name: 'Profile', fn: 'pashu-aadhaar-profile-prod' },
+                  { name: 'Post-Confirmation', fn: 'pashu-aadhaar-post-confirmation-prod' },
+                  { name: 'Access Requests', fn: 'pashu-aadhaar-access-requests-prod' },
+                  { name: 'Enrollment Sessions', fn: 'pashu-aadhaar-enrollment-sessions-prod' },
+                  { name: 'Get Upload URL', fn: 'pashu-aadhaar-get-upload-url-prod' },
+                ].map(svc => {
+                  const logGroup = encodeURIComponent(encodeURIComponent(`/aws/lambda/${svc.fn}`));
+                  const url = `https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/${logGroup}`;
+                  return (
+                    <a key={svc.fn} href={url} target="_blank" rel="noopener noreferrer" className="log-link-card">
+                      <span className="log-icon">📄</span>
+                      <div>
+                        <span className="log-name">{svc.name}</span>
+                        <span className="log-fn">/aws/lambda/{svc.fn}</span>
+                      </div>
+                      <span className="log-arrow">↗</span>
+                    </a>
+                  );
+                })}
+              </div>
             </section>
           </div>
         )}

@@ -11,6 +11,7 @@ import Result from './pages/Result'
 import AnimalDetail from './pages/AnimalDetail'
 import Profile from './pages/Profile'
 import GovDashboard from './pages/GovDashboard'
+import AnimalVerification from './pages/AnimalVerification'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -96,6 +97,14 @@ function App() {
           element={
             <ProtectedRoute>
               <GovDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/verify"
+          element={
+            <ProtectedRoute>
+              <AnimalVerification />
             </ProtectedRoute>
           }
         />
