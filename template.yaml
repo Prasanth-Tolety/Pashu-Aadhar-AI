@@ -1250,6 +1250,40 @@ Resources:
             Method: OPTIONS
             Auth:
               Authorizer: NONE
+        # AI Health Report
+        AnimalReport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/animal-report/{animal_id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnimalReportOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/animal-report/{animal_id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        # Fraud Score Reasons
+        FraudReasons:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/fraud-reasons/{animal_id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        FraudReasonsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/fraud-reasons/{animal_id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
     Metadata:
       BuildMethod: esbuild
       BuildProperties:

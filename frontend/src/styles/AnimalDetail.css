@@ -785,3 +785,348 @@
   color: #7c3aed;
   flex-shrink: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   AI Health Report & Fraud Reasons
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Health Report Button */
+.health-report-section {
+  margin: 0.75rem 0 1rem;
+}
+
+.health-report-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  justify-content: center;
+}
+
+.health-report-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.35);
+}
+
+.health-report-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.loading-spinner-sm {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Modal System */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: modal-fade-in 0.25s ease;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: modal-slide-up 0.3s ease;
+}
+
+@keyframes modal-slide-up {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  background: white;
+  border-radius: 16px 16px 0 0;
+  z-index: 1;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 3rem 2rem;
+  color: #666;
+}
+
+/* Health Report Modal */
+.health-report-modal {
+  max-width: 700px;
+}
+
+.report-meta {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #f0fdf4;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: #166534;
+  font-weight: 600;
+}
+
+.report-content {
+  line-height: 1.7;
+  color: #374151;
+}
+
+.report-content p {
+  margin: 4px 0;
+}
+
+.report-heading {
+  color: #059669;
+  font-size: 1rem;
+  margin: 16px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #d1fae5;
+}
+
+.report-bullet {
+  padding-left: 12px;
+  position: relative;
+}
+
+.report-step {
+  padding-left: 8px;
+  font-weight: 500;
+}
+
+.report-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.report-disclaimer {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Fraud Reasons */
+.fraud-score-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fraud-reasons-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #333;
+  white-space: nowrap;
+}
+
+.fraud-reasons-btn:hover:not(:disabled) {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.fraud-reasons-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Fraud Reasons Modal */
+.fraud-reasons-modal {
+  max-width: 560px;
+}
+
+.fraud-score-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.fraud-score-big {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #333;
+}
+
+.fraud-sub-scores {
+  margin-bottom: 20px;
+}
+
+.fraud-sub-scores h4,
+.fraud-reasons-list h4 {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0 0 10px;
+}
+
+.sub-score-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sub-score-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sub-score-label {
+  width: 140px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.sub-score-bar {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sub-score-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.sub-score-value {
+  width: 30px;
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.fraud-reasons-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.fraud-reasons-list li {
+  padding: 8px 12px;
+  margin: 4px 0;
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.85rem;
+  color: #92400e;
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    max-width: 100%;
+    max-height: 90vh;
+    margin: 0;
+  }
+
+  .modal-overlay {
+    padding: 16px;
+  }
+
+  .fraud-score-banner {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fraud-score-right-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sub-score-label {
+    width: 100px;
+    font-size: 0.75rem;
+  }
+}

@@ -1,12 +1,50 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useVoice } from '../context/VoiceContext';
 import { ROLE_CONFIG } from '../types';
 import { askAiAssistant, sendAiChat } from '../services/api';
 import SpeakButton from '../components/SpeakButton';
 import VoiceToggle from '../components/VoiceToggle';
 import '../styles/AiAssistant.css';
+
+// ─── Speech Recognition types ────────────────────────────────────
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  [index: number]: SpeechRecognitionAlternative;
+}
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onstart: (() => void) | null;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionInstance;
+    webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+  }
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -19,6 +57,7 @@ type Mode = 'assistant' | 'chat';
 export default function AiAssistant() {
   const { user, idToken } = useAuth();
   const { t } = useLanguage();
+  const { speak, voiceEnabled } = useVoice();
   const [searchParams] = useSearchParams();
   const role = (user?.role || 'farmer') as keyof typeof ROLE_CONFIG;
   const roleConfig = ROLE_CONFIG[role];
@@ -37,6 +76,13 @@ export default function AiAssistant() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatId, setChatId] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // --- Voice Input (Speech Recognition) ---
+  const [isListening, setIsListening] = useState(false);
+  const [interimText, setInterimText] = useState('');
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const hasSpeechRecognition = !!SpeechRecognition;
 
   // Quick suggestion prompts
   const quickPrompts = [
@@ -59,6 +105,8 @@ export default function AiAssistant() {
     try {
       const res = await askAiAssistant(question, animalId || undefined, idToken);
       setAssistantResponse(res.response);
+      // Auto-speak the response if voice is enabled
+      if (voiceEnabled) speak(res.response);
     } catch {
       setAssistantResponse(t.aiServiceUnavailable || 'AI service is temporarily unavailable. Please try again.');
     } finally {
@@ -81,6 +129,8 @@ export default function AiAssistant() {
         ...prev,
         { role: 'assistant', content: res.response, timestamp: new Date() },
       ]);
+      // Auto-speak
+      if (voiceEnabled) speak(res.response);
     } catch {
       setChatMessages((prev) => [
         ...prev,
@@ -111,6 +161,60 @@ export default function AiAssistant() {
     setChatMessages([]);
     setChatId('');
   };
+
+  // ─── Voice Input Handlers ──────────────────────────────────────
+  const startListening = useCallback(() => {
+    if (!SpeechRecognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-IN';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setInterimText('');
+    };
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        if (mode === 'assistant') {
+          setQuestion((prev) => prev + finalTranscript);
+        } else {
+          setChatInput((prev) => prev + finalTranscript);
+        }
+        setInterimText('');
+      } else {
+        setInterimText(interimTranscript);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      setInterimText('');
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      setInterimText('');
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [SpeechRecognition, mode]);
+
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }, []);
 
   return (
     <div className="ai-container">
@@ -182,22 +286,38 @@ export default function AiAssistant() {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t.aiDescribeSymptoms || 'Describe the symptoms or ask a question about your animal...'}
+              placeholder={isListening ? 'Listening...' : (t.aiDescribeSymptoms || 'Describe the symptoms or ask a question about your animal...')}
               rows={4}
               className="ai-textarea"
-              disabled={assistantLoading}
+              disabled={assistantLoading || isListening}
             />
-            <button
-              onClick={handleAskAssistant}
-              disabled={!question.trim() || assistantLoading}
-              className="ai-submit-btn"
-            >
+            {interimText && mode === 'assistant' && (
+              <div className="ai-interim-text"><span className="ai-rec-dot" /> {interimText}</div>
+            )}
+            <div className="ai-input-actions">
+              {hasSpeechRecognition && (
+                <button
+                  onClick={isListening ? stopListening : startListening}
+                  className={`ai-mic-btn ${isListening ? 'listening' : ''}`}
+                  title={isListening ? 'Stop listening' : 'Speak your question'}
+                  disabled={assistantLoading}
+                  type="button"
+                >
+                  {isListening ? '⏹️ Stop' : '🎙️ Speak'}
+                </button>
+              )}
+              <button
+                onClick={handleAskAssistant}
+                disabled={!question.trim() || assistantLoading}
+                className="ai-submit-btn"
+              >
               {assistantLoading ? (
                 <><span className="ai-spinner" /> {t.aiAnalyzing || 'Analyzing...'}</>
               ) : (
                 <>🔍 {t.aiAskVet || 'Ask AI Vet'}</>
               )}
             </button>
+            </div>
           </div>
 
           {assistantResponse && (

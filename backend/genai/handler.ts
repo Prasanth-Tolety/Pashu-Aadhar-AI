@@ -603,6 +603,264 @@ async function handleListOutbreaks(event: APIGatewayProxyEvent): Promise<APIGate
   }
 }
 
+// ─── AI Animal Health Report ────────────────────────────────────────
+
+async function handleHealthReport(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  const animalId = event.pathParameters?.animal_id || event.queryStringParameters?.animal_id;
+  if (!animalId) {
+    return cors(400, { error: 'Missing animal_id' });
+  }
+
+  try {
+    // Fetch animal data
+    const animalRes = await ddb.send(
+      new GetCommand({ TableName: 'animals', Key: { livestock_id: animalId } })
+    );
+    const animal = animalRes.Item;
+    if (!animal) {
+      return cors(404, { error: `Animal ${animalId} not found` });
+    }
+
+    // Fetch all health records
+    let healthRecords: Array<Record<string, unknown>> = [];
+    try {
+      const healthRes = await ddb.send(
+        new QueryCommand({
+          TableName: 'health_records',
+          KeyConditionExpression: 'livestock_id = :id',
+          ExpressionAttributeValues: { ':id': animalId },
+          ScanIndexForward: false,
+          Limit: 20,
+        })
+      );
+      healthRecords = healthRes.Items || [];
+    } catch { /* optional */ }
+
+    // Fetch milk yields
+    let milkYields: Array<Record<string, unknown>> = [];
+    try {
+      const milkRes = await ddb.send(
+        new QueryCommand({
+          TableName: 'milk_yields',
+          KeyConditionExpression: 'livestock_id = :id',
+          ExpressionAttributeValues: { ':id': animalId },
+          ScanIndexForward: false,
+          Limit: 10,
+        })
+      );
+      milkYields = milkRes.Items || [];
+    } catch { /* optional */ }
+
+    // Fetch insurance
+    let insurancePolicies: Array<Record<string, unknown>> = [];
+    try {
+      const insRes = await ddb.send(
+        new QueryCommand({
+          TableName: 'insurance_policies',
+          KeyConditionExpression: 'livestock_id = :id',
+          ExpressionAttributeValues: { ':id': animalId },
+          ScanIndexForward: false,
+          Limit: 5,
+        })
+      );
+      insurancePolicies = insRes.Items || [];
+    } catch { /* optional */ }
+
+    // Build data summary for the prompt
+    const ageText = animal.age_months
+      ? `${Math.floor(animal.age_months / 12)} years ${animal.age_months % 12} months`
+      : 'Unknown';
+
+    const vaccinationRecords = healthRecords.filter((r) => r.record_type === 'vaccination');
+    const treatmentRecords = healthRecords.filter((r) => r.record_type === 'treatment' || r.record_type === 'checkup');
+
+    const healthSummary = healthRecords.length > 0
+      ? healthRecords.map((r) => `- ${r.record_type} on ${r.record_date}${r.vaccine_type ? ` (${r.vaccine_type})` : ''}${r.notes ? `: ${r.notes}` : ''}`).join('\n')
+      : 'No health records available';
+
+    const milkSummary = milkYields.length > 0
+      ? milkYields.map((y) => `- ${y.yield_date}: Morning ${y.morning_yield}L, Evening ${y.evening_yield}L, Total ${y.total_yield}L`).join('\n')
+      : 'No milk yield data';
+
+    const insuranceSummary = insurancePolicies.length > 0
+      ? insurancePolicies.map((p) => `- ${p.provider}: ₹${p.coverage_amount} (${p.status})`).join('\n')
+      : 'No insurance policies';
+
+    const prompt = `You are an expert livestock health analyst. Generate a comprehensive yet concise health report for this animal.
+
+=== ANIMAL DATA ===
+Animal ID: ${animal.livestock_id}
+Species: ${animal.species || 'Unknown'}
+Breed: ${animal.breed || 'Unknown'}
+Gender: ${animal.gender || 'Unknown'}
+Age: ${ageText}
+Color/Pattern: ${animal.color_pattern || 'N/A'}
+Location: ${[animal.village, animal.district, animal.state].filter(Boolean).join(', ') || 'Unknown'}
+Owner: ${animal.owner_id || 'Unknown'}
+Status: ${animal.status || 'Active'}
+Enrolled: ${animal.enrolled_at || 'Unknown'}
+
+=== VACCINATION HISTORY (${vaccinationRecords.length} records) ===
+${vaccinationRecords.length > 0 ? vaccinationRecords.map((r) => `- ${r.record_date}: ${r.vaccine_type || r.record_type}${r.notes ? ` - ${r.notes}` : ''}`).join('\n') : 'No vaccination records'}
+
+=== HEALTH RECORDS (${healthRecords.length} total) ===
+${healthSummary}
+
+=== MILK YIELD DATA (last ${milkYields.length} entries) ===
+${milkSummary}
+
+=== INSURANCE ===
+${insuranceSummary}
+
+Generate the report in this exact format:
+
+**🐄 Animal Health Report**
+
+**Animal Summary:**
+Animal ID, breed, age, gender, location, owner
+
+**Health Status:**
+Overall health assessment based on available data (Good/Fair/Needs Attention/Critical)
+
+**Observations:**
+• Vaccination status (up to date or overdue, list vaccines given)
+• Recent disease/treatment records
+• Milk yield trends (if applicable)
+• Insurance coverage status
+
+**Recommendations:**
+• Next vaccination due (estimate based on standard Indian schedule)
+• Feeding/care recommendations for the season
+• Suggested vet visits
+• Any alerts based on the data
+
+Keep it practical, concise, and useful for an Indian farmer.`;
+
+    const report = await invokeBedrock(prompt, 800);
+
+    // Store the report generation as an interaction
+    const reportId = `report_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    try {
+      await ddb.send(
+        new PutCommand({
+          TableName: 'ai_interactions',
+          Item: {
+            interaction_id: reportId,
+            user_id: getUserId(event),
+            animal_id: animalId,
+            question: 'AI Health Report Generation',
+            response: report,
+            interaction_type: 'health_report',
+            created_at: new Date().toISOString(),
+          },
+        })
+      );
+    } catch { /* best-effort */ }
+
+    return cors(200, {
+      report,
+      animal_id: animalId,
+      report_id: reportId,
+      generated_at: new Date().toISOString(),
+      animal_summary: {
+        species: animal.species,
+        breed: animal.breed,
+        age: ageText,
+        owner: animal.owner_id,
+        status: animal.status,
+      },
+    });
+  } catch (err) {
+    console.error('Health report error:', err);
+    return cors(500, { error: 'Failed to generate health report. Please try again.' });
+  }
+}
+
+// ─── Fraud Score Reasons ────────────────────────────────────────────
+
+async function handleFraudReasons(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  const role = getUserRole(event);
+  if (!['government', 'admin', 'insurer'].includes(role)) {
+    return cors(403, { error: 'Access denied. Admin, government, or insurer role required.' });
+  }
+
+  const animalId = event.pathParameters?.animal_id || event.queryStringParameters?.animal_id;
+  if (!animalId) {
+    return cors(400, { error: 'Missing animal_id' });
+  }
+
+  try {
+    // Fetch fraud score from animals table
+    const animalRes = await ddb.send(
+      new GetCommand({ TableName: 'animals', Key: { livestock_id: animalId } })
+    );
+    const animal = animalRes.Item;
+    if (!animal) {
+      return cors(404, { error: 'Animal not found' });
+    }
+
+    // Check fraud_scores table for detailed breakdown
+    let fraudDetails: Record<string, unknown> | null = null;
+    try {
+      const fraudRes = await ddb.send(
+        new GetCommand({ TableName: 'fraud_scores', Key: { livestock_id: animalId } })
+      );
+      fraudDetails = fraudRes.Item || null;
+    } catch { /* optional */ }
+
+    const fraudScore = animal.fraud_risk_score ?? fraudDetails?.fraud_risk_score ?? 0;
+    const riskLevel = animal.risk_level ?? fraudDetails?.risk_level ?? 'low';
+    const flags = animal.fraud_flags ?? fraudDetails?.flags ?? [];
+
+    // Build summary of reasons
+    const reasons: string[] = [];
+
+    if (fraudDetails) {
+      if ((fraudDetails.agent_behavior_score as number) > 20) {
+        reasons.push(`Agent behavior anomaly (score: ${fraudDetails.agent_behavior_score}/100)`);
+      }
+      if ((fraudDetails.device_trust_score as number) > 20) {
+        reasons.push(`Device trust issue (score: ${fraudDetails.device_trust_score}/100)`);
+      }
+      if ((fraudDetails.location_consistency_score as number) > 20) {
+        reasons.push(`Location inconsistency (score: ${fraudDetails.location_consistency_score}/100)`);
+      }
+      if ((fraudDetails.image_quality_score as number) > 20) {
+        reasons.push(`Image quality concern (score: ${fraudDetails.image_quality_score}/100)`);
+      }
+      if ((fraudDetails.duplicate_embedding_score as number) > 20) {
+        reasons.push(`Possible duplicate animal (score: ${fraudDetails.duplicate_embedding_score}/100)`);
+      }
+    }
+
+    // Add flag descriptions
+    for (const flag of flags) {
+      reasons.push(String(flag).replace(/_/g, ' '));
+    }
+
+    if (reasons.length === 0) {
+      reasons.push(fraudScore < 20 ? 'No fraud indicators detected' : 'Fraud flags not available — score computed from enrollment metadata');
+    }
+
+    return cors(200, {
+      animal_id: animalId,
+      fraud_risk_score: fraudScore,
+      risk_level: riskLevel,
+      reasons,
+      sub_scores: fraudDetails ? {
+        agent_behavior: fraudDetails.agent_behavior_score,
+        device_trust: fraudDetails.device_trust_score,
+        location_consistency: fraudDetails.location_consistency_score,
+        image_quality: fraudDetails.image_quality_score,
+        duplicate_embedding: fraudDetails.duplicate_embedding_score,
+      } : null,
+    });
+  } catch (err) {
+    console.error('Fraud reasons error:', err);
+    return cors(500, { error: 'Failed to fetch fraud reasons' });
+  }
+}
+
 // ─── Router ─────────────────────────────────────────────────────────
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
@@ -635,6 +893,16 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     // POST /ai-assistant/outbreaks/scan
     if (path === '/ai-assistant/outbreaks/scan' && method === 'POST') {
       return handleOutbreakScan(event);
+    }
+
+    // GET /ai/animal-report/{animal_id}
+    if (path === '/ai/animal-report/{animal_id}' && method === 'GET') {
+      return handleHealthReport(event);
+    }
+
+    // GET /ai/fraud-reasons/{animal_id}
+    if (path === '/ai/fraud-reasons/{animal_id}' && method === 'GET') {
+      return handleFraudReasons(event);
     }
 
     return cors(404, { error: 'Not found' });

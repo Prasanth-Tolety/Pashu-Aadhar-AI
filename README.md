@@ -1,353 +1,473 @@
-# Pashu-Aadhaar Enrollment Portal
+<p align="center">
+  <h1 align="center">🐄 Pashu Aadhaar — AI-Powered Livestock Identity Platform</h1>
+  <p align="center">
+    A production-grade, full-stack digital identity system for livestock in rural India.<br/>
+    Muzzle-print biometrics · GenAI Veterinary Copilot · Fraud Detection · Outbreak Monitoring
+  </p>
+</p>
 
-A production-ready web application for enrolling livestock animals using AI-powered biometric identification.
+<p align="center">
+  <img src="https://img.shields.io/badge/React-18.2-61DAFB?logo=react" alt="React"/>
+  <img src="https://img.shields.io/badge/TypeScript-5.2-3178C6?logo=typescript" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/AWS_SAM-Serverless-FF9900?logo=amazonaws" alt="AWS SAM"/>
+  <img src="https://img.shields.io/badge/Amazon_Bedrock-Nova_Lite-232F3E?logo=amazonaws" alt="Bedrock"/>
+  <img src="https://img.shields.io/badge/DynamoDB-NoSQL-4053D6?logo=amazondynamodb" alt="DynamoDB"/>
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License"/>
+</p>
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Deployment](#deployment)
+- [API Reference](#api-reference)
+- [AI & ML Pipeline](#ai--ml-pipeline)
+- [Fraud Detection System](#fraud-detection-system)
+- [Seed Data](#seed-data)
+- [Internationalization](#internationalization)
+- [License](#license)
+
+---
+
+## Overview
+
+**Pashu Aadhaar** (पशु आधार — "Animal Identity") creates unique biometric identities for cattle using deep-learning-based muzzle-print recognition, analogous to fingerprints for humans. The platform serves **six stakeholder roles** — farmers, enrollment agents, veterinarians, insurance companies, banks, and government agencies — each with tailored dashboards, workflows, and access controls.
+
+The system combines **computer vision** (YOLOv8 + custom muzzle detection running in-browser via ONNX Runtime), **vector similarity search** (SageMaker CLIP embeddings + OpenSearch), and **generative AI** (Amazon Bedrock Nova Lite) to deliver a comprehensive livestock management ecosystem.
+
+---
+
+## Key Features
+
+### 🔐 Biometric Enrollment & Verification
+- **In-browser YOLOv8 cow detection** and **custom muzzle detection** via ONNX Runtime Web — zero server cost for inference
+- **Multi-step agent enrollment workflow** with guided capture (cow → muzzle → body texture → agent selfie)
+- **Real-time detection overlays** with bounding boxes and confidence scores
+- **SageMaker CLIP embeddings** for muzzle-print vectorization (80% muzzle + 15% body + 5% texture weighting)
+- **OpenSearch cosine similarity** matching with 0.85 threshold for identity verification
+- GPS location tracking, device fingerprinting, and video recording during enrollment
+
+### 🤖 GenAI Veterinary Copilot
+- **AI Vet Assistant** — ask animal health questions, get expert veterinary advice powered by Amazon Bedrock (Nova Lite)
+- **AI Chat Mode** — contextual conversations with animal health data awareness
+- **Voice-to-Voice Communication** — speak queries via microphone (Web Speech API), hear AI responses auto-read aloud (SpeechSynthesis)
+- **Floating Chatbot Widget** — persistent AI copilot accessible from any page, expand/minimize, unread badge
+
+### 📋 AI Health Report Generator
+- One-click **comprehensive health report** generation from stored animal data
+- Aggregates health records, milk yields, insurance status, and enrollment metadata
+- Professional structured report with AI-powered analysis, concerns, and recommendations
+- Text-to-speech playback of full report
+
+### 🦠 Disease Outbreak Monitoring
+- **Automated outbreak detection** via EventBridge (scans every 10 minutes)
+- Clusters health records by disease, location, and time window
+- AI-generated risk assessments and containment recommendations
+- Manual scan trigger for on-demand analysis
+
+### 🛡️ Fraud Detection & Scoring
+- **Five sub-score system** (0–100): agent behavior, device trust, location consistency, image quality, duplicate embedding
+- Risk levels: Low / Medium / High / Critical
+- **"Why this score?" modal** — detailed breakdown with visual sub-score bars (admin/government only)
+- Fraud score hidden from owner, agent, and veterinarian roles
+
+### 📊 Government Analytics Dashboard
+- State-wise enrollment heatmap on interactive India SVG map
+- Breed distribution, enrollment trends, fraud analytics, agent performance
+- Summary metrics with Recharts-powered visualizations
+
+### 💼 Additional Features
+- **Insurance management** — policy creation, tracking, and claims
+- **Loan collateral tracking** — animals as bank loan collateral
+- **Milk yield recording** — daily production tracking with analytics
+- **QR code generation & scanning** — instant animal identification
+- **Role-based access control** — 6 roles with granular permissions
+- **Access request system** — farmers can grant/revoke data access to other stakeholders
+- **Multi-language support** — 7 languages (English, Hindi, Telugu, Tamil, Kannada, Marathi, Bengali)
+- **Voice accessibility toggle** — global text-to-speech for all content
+
+---
 
 ## Architecture
 
-- **Frontend**: React + TypeScript (Vite), hosted on AWS S3 + CloudFront
-- **Backend**: AWS Lambda (Node.js) + API Gateway (Serverless)
-- **Storage**: AWS S3 (images), AWS OpenSearch (embeddings), AWS Aurora PostgreSQL (metadata)
-- **AI**: AWS SageMaker endpoint for muzzle pattern embedding generation
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CloudFront CDN                              │
+│                    (S3 Static Website Hosting)                      │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   React 18 + TypeScript + Vite                                      │
+│   ┌──────────┐  ┌───────────┐  ┌────────────┐  ┌───────────────┐   │
+│   │ ONNX     │  │ Web Speech│  │ Cognito    │  │ Chatbot       │   │
+│   │ Runtime  │  │ API       │  │ Auth       │  │ Widget        │   │
+│   │ (YOLOv8) │  │ (Voice)   │  │ (JWT)      │  │ (AI Copilot)  │   │
+│   └──────────┘  └───────────┘  └─────┬──────┘  └───────────────┘   │
+│                                       │                             │
+├──────────────────────────────────────┼──────────────────────────────┤
+│              API Gateway (REST)  +  Cognito Authorizer              │
+├──────────────────────────────────────┼──────────────────────────────┤
+│                                       │                             │
+│   AWS Lambda Functions (Node.js 20.x, esbuild)                     │
+│   ┌───────────┐ ┌──────────┐ ┌───────────┐ ┌──────────────────┐   │
+│   │ Enroll    │ │ Animals  │ │ GenAI     │ │ Outbreak Monitor │   │
+│   │ (SageMaker│ │ (CRUD +  │ │ (Bedrock  │ │ (EventBridge     │   │
+│   │ + Search) │ │ health)  │ │ Nova Lite)│ │  scheduled)      │   │
+│   └─────┬─────┘ └────┬─────┘ └─────┬─────┘ └────────┬─────────┘   │
+│         │            │             │                │               │
+├─────────┼────────────┼─────────────┼────────────────┼───────────────┤
+│         ▼            ▼             ▼                ▼               │
+│   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────────┐      │
+│   │ SageMaker│ │ DynamoDB │ │ Bedrock  │ │ EventBridge     │      │
+│   │ (CLIP)   │ │ (13+     │ │ (Nova    │ │ (10-min cron)   │      │
+│   └────┬─────┘ │ tables)  │ │ Lite)    │ └─────────────────┘      │
+│        │       └──────────┘ └──────────┘                           │
+│        ▼                                                            │
+│   ┌──────────┐  ┌──────────┐                                       │
+│   │OpenSearch│  │ S3       │                                        │
+│   │(vectors) │  │ (images) │                                        │
+│   └──────────┘  └──────────┘                                        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18.2 · TypeScript 5.2 · Vite 5.1 |
+| **Backend** | AWS Lambda (Node.js 20.x) · esbuild · AWS SAM |
+| **Database** | Amazon DynamoDB (13+ tables) |
+| **Auth** | Amazon Cognito (User Pool + JWT Authorizer) |
+| **AI/ML** | Amazon Bedrock (Nova Lite v1:0) · SageMaker (CLIP embeddings) · YOLOv8n (ONNX Runtime Web) |
+| **Search** | Amazon OpenSearch (cosine kNN vectors) |
+| **Storage** | Amazon S3 (images + static site) |
+| **CDN** | Amazon CloudFront |
+| **Scheduling** | Amazon EventBridge (10-min outbreak scans) |
+| **Observability** | AWS X-Ray (active tracing on all Lambdas) |
+| **Charting** | Recharts 3.8 |
+| **Voice** | Web Speech API (SpeechRecognition + SpeechSynthesis) |
+| **i18n** | 7 languages — English, Hindi, Telugu, Tamil, Kannada, Marathi, Bengali |
+
+---
 
 ## Project Structure
 
 ```
-├── frontend/          # React TypeScript frontend
-│   └── src/
-│       ├── components/
-│       │   ├── CameraCapture/
-│       │   ├── EnrollmentResult/
-│       │   ├── ImageUpload/
-│       │   └── UploadProgress/
-│       ├── pages/
-│       │   ├── Home.tsx
-│       │   ├── Enrollment.tsx
-│       │   └── Result.tsx
-│       ├── services/
-│       │   ├── api.ts
-│       │   └── s3.ts
-│       ├── styles/
-│       └── types/
-├── backend/           # AWS Lambda functions
-│   ├── getUploadUrl/  # Presigned URL generator
-│   ├── enroll/        # Enrollment processor
-│   └── shared/        # Shared utilities
-├── local-server/      # Mock API server for local development
-│   └── server.ts      # Replaces Lambda + S3 + SageMaker + OpenSearch locally
-└── template.yaml      # AWS SAM deployment template
+Pashu-Aadhar-AI/
+├── template.yaml              # AWS SAM — all infrastructure (Lambda, API GW, DynamoDB, IAM, etc.)
+├── samconfig.toml             # SAM deployment config (stack name, region, params)
+├── deploy.sh                  # Frontend → S3 + CloudFront deploy script
+│
+├── frontend/                  # React + TypeScript + Vite
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AgentLiveCapture/   # Real-time YOLOv8 detection overlay
+│   │   │   ├── AgentStepCapture    # Multi-step guided enrollment
+│   │   │   ├── CameraCapture/      # Camera photo capture
+│   │   │   ├── ChatbotWidget       # Floating AI copilot (global)
+│   │   │   ├── EnrollmentResult/   # Enrollment result display
+│   │   │   ├── ImageUpload/        # Drag-and-drop upload
+│   │   │   ├── IndiaMap/           # SVG India heatmap
+│   │   │   ├── LanguageSelector/   # 7-language picker
+│   │   │   ├── QRCodeCard          # QR code generator
+│   │   │   ├── QRScanner           # QR code scanner
+│   │   │   ├── SpeakButton         # Text-to-speech button
+│   │   │   └── VoiceToggle         # Voice accessibility toggle
+│   │   ├── pages/
+│   │   │   ├── Home.tsx            # Landing page
+│   │   │   ├── Login.tsx / Signup.tsx
+│   │   │   ├── Dashboard.tsx       # Farmer dashboard
+│   │   │   ├── Enrollment.tsx      # Quick enrollment
+│   │   │   ├── AgentEnrollment.tsx # Agent multi-step workflow
+│   │   │   ├── AnimalDetail.tsx    # Full animal profile
+│   │   │   ├── AnimalVerification  # Identity verification
+│   │   │   ├── AiAssistant.tsx     # GenAI Vet + Chat + Voice
+│   │   │   ├── OutbreakAlerts.tsx  # Disease monitoring
+│   │   │   ├── GovDashboard.tsx    # Government analytics
+│   │   │   └── Profile.tsx         # User profile
+│   │   ├── hooks/                  # useAnimalDetection, useCowDetection, useMuzzleDetection
+│   │   ├── services/               # api.ts, auth.ts, s3.ts
+│   │   ├── context/                # AuthContext, LanguageContext, VoiceContext
+│   │   ├── i18n/                   # Translation files (7 languages)
+│   │   ├── config/                 # Enrollment config, model weights
+│   │   └── styles/                 # Component CSS
+│   └── public/models/              # ONNX models (YOLOv8, muzzle, cow)
+│
+├── backend/                   # Lambda function handlers
+│   ├── getUploadUrl/          # Presigned S3 URL generation
+│   ├── enroll/                # SageMaker embedding + OpenSearch enrollment
+│   ├── animals/               # CRUD: animals, health, milk, insurance, loans
+│   ├── profile/               # User profile (Cognito + DynamoDB)
+│   ├── post-confirmation/     # Cognito trigger — auto-create owner record
+│   ├── access-requests/       # Access request management
+│   ├── enrollment-sessions/   # Full enrollment workflow engine
+│   ├── analytics/             # Government dashboard aggregations
+│   ├── genai/                 # AI Assistant, Chat, Health Reports, Fraud Reasons, Outbreaks
+│   └── shared/                # Constants, utilities, fraud config
+│
+├── seed-data/                 # DynamoDB seeding (300 animals, 20 states, 16 breeds)
+├── local-server/              # Mock API for offline development
+├── scripts/                   # Setup: Cognito users, OpenSearch, SageMaker, ONNX conversion
+└── images/                    # Training data (Face/Muzzle splits)
 ```
 
 ---
 
-## Running Locally (No AWS Required)
-
-The `local-server` replaces all AWS services (S3, SageMaker, OpenSearch) with an in-process mock so you can develop and test the full UI flow without any cloud credentials.
+## Getting Started
 
 ### Prerequisites
 
-- **Node.js 18+** — check with `node --version`
-- **npm 9+** — check with `npm --version`
+- **Node.js 20+** and **npm 9+**
+- **AWS CLI** configured (`aws configure`)
+- **AWS SAM CLI** — [Install guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 
-### Quick start (single command)
+### Local Development (No AWS Required)
+
+The included `local-server` mocks all AWS services (S3, SageMaker, OpenSearch) so you can develop the full UI flow without cloud credentials.
 
 ```bash
-# 1. Install all dependencies
+# Install all workspace dependencies
 npm run install:all
 
-# 2. Start both servers together
+# Start mock API (port 3001) + Vite dev server (port 3000)
 npm run dev
 ```
 
-This uses [concurrently](https://github.com/open-cli-tools/concurrently) to run:
-- `api` — Mock API server on **http://localhost:3001**
-- `ui`  — Vite frontend on **http://localhost:3000**
+Open **http://localhost:3000** in your browser.
 
-Then open **http://localhost:3000** in your browser.
+### Manual Start (Two Terminals)
 
-> If `npm run dev` isn't working, start the two servers manually (see below).
+```bash
+# Terminal 1 — Mock API
+cd local-server && npm install && npm start
+
+# Terminal 2 — Frontend
+cd frontend && npm install && npm run dev
+```
 
 ---
 
-### Manual start (two terminals)
+## Deployment
 
-**Terminal 1 — Mock API server**
+### Backend (AWS SAM)
 
 ```bash
-cd local-server
-npm install
-npm start
+# Build all Lambda functions
+sam build
+
+# First-time deploy (interactive)
+sam deploy --guided
+
+# Subsequent deploys
+sam deploy --no-confirm-changeset
 ```
 
-Expected output:
-```
-🐄  Pashu-Aadhaar Mock API Server
-    Listening on http://localhost:3001
+**SAM Parameters:**
 
-    Endpoints:
-      GET  /upload-url?fileName=...&contentType=...
-      PUT  /mock-upload/<imageKey>        (fake S3 upload)
-      POST /enroll                       (mock ML + vector search)
-```
+| Parameter | Description |
+|-----------|-------------|
+| `Stage` | Environment (`prod`) |
+| `S3BucketName` | Animal image storage bucket |
+| `SageMakerEndpointName` | CLIP embedding endpoint |
+| `OpenSearchEndpoint` | Vector search domain URL |
+| `AllowedOrigin` | CloudFront domain for CORS |
+| `CognitoUserPoolId` | Cognito User Pool ID |
+| `CognitoUserPoolArn` | Cognito User Pool ARN |
 
-**Terminal 2 — Frontend dev server**
+### Frontend (S3 + CloudFront)
 
 ```bash
 cd frontend
-cp .env.example .env    # VITE_API_BASE_URL is empty → uses Vite proxy
-npm install
-npm run dev
-```
-
-Expected output:
-```
-  VITE v5.x.x  ready in ...ms
-  ➜  Local:   http://localhost:3000/
-```
-
-Open **http://localhost:3000** and go through the full enrollment flow.
-
----
-
-### How the local mock works
-
-| Step | What happens locally |
-|---|---|
-| `GET /upload-url` | Returns a fake `uploadUrl` pointing to `localhost:3001/mock-upload/…` |
-| `PUT <uploadUrl>` | Mock server accepts the raw image bytes and returns `200 OK` (nothing is stored) |
-| `POST /enroll` | Returns a mock `NEW` or `EXISTING` result (alternates on each call so you can test both screens) |
-
-**Enrollment response pattern:**
-
-| Enroll call | Status | Notes |
-|---|---|---|
-| 1st | `NEW` | Fresh animal enrolled |
-| 2nd | `EXISTING` | Same `livestock_id` returned |
-| 3rd | `NEW` | New animal enrolled |
-| … | alternates | |
-
----
-
-## Enrollment Flow
-
-1. User opens the portal and clicks **Start Enrollment**
-2. User captures a photo using the device camera or uploads an image
-3. Frontend requests a presigned S3 upload URL from `GET /upload-url`
-4. Frontend uploads image directly to S3 using the presigned URL
-5. Frontend calls `POST /enroll` with the image key
-6. Lambda retrieves the image, calls SageMaker for embeddings, searches OpenSearch
-7. Returns `NEW` or `EXISTING` status with livestock ID and similarity score
-
----
-
-## Deploying to AWS
-
-### Build the backend (Lambda functions)
-
-```bash
-cd backend
-npm install
 npm run build
-```
 
-### Deploy with AWS SAM
+# Sync to S3 with caching
+aws s3 sync dist/ s3://pashu-aadhaar-website-prod \
+  --exclude "index.html" --cache-control "max-age=31536000"
+aws s3 cp dist/index.html s3://pashu-aadhaar-website-prod/index.html \
+  --cache-control "no-cache"
 
-```bash
-sam build
-sam deploy --guided
-```
-
-### Configure the frontend for production
-
-```bash
-cd frontend
-cp .env.example .env
-# Edit .env and set:
-# VITE_API_BASE_URL=https://<your-api-id>.execute-api.<region>.amazonaws.com/prod
-npm run build
-# Upload frontend/dist/ to your S3 + CloudFront distribution
+# Invalidate CloudFront
+aws cloudfront create-invalidation \
+  --distribution-id <DISTRIBUTION_ID> --paths "/*"
 ```
 
 ---
 
-## Environment Variables
+## API Reference
 
-### Frontend
-| Variable | Local dev | Production |
-|---|---|---|
-| `VITE_API_BASE_URL` | *(empty — uses Vite proxy)* | `https://<api-id>.execute-api.<region>.amazonaws.com/prod` |
+### Upload & Enrollment
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/upload-url` | Presigned S3 URL for image upload |
+| `POST` | `/enroll` | Enroll animal (SageMaker + OpenSearch) |
+| `POST` | `/verify` | Verify identity by photo |
 
-### Backend (Lambda — API Gateway routes)
+### Animals CRUD
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/animals` | List animals |
+| `GET/POST` | `/animals/{id}` | Get / update animal |
+| `GET/POST` | `/animals/{id}/health` | Health records |
+| `GET/POST` | `/animals/{id}/milk` | Milk yield records |
+| `GET/POST` | `/animals/{id}/insurance` | Insurance policies |
+| `GET/POST` | `/animals/{id}/loans` | Loan collateral |
 
-The Lambda functions are exposed via API Gateway at these routes:
+### Enrollment Workflow
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/enrollment-requests` | Create enrollment request |
+| `GET` | `/enrollment-requests` | List requests |
+| `POST` | `/enrollment-requests/{id}/accept` | Agent accepts request |
+| `POST/GET` | `/enrollment-sessions` | Create/list sessions |
+| `POST` | `/enrollment-sessions/{id}/step` | Submit enrollment step |
+| `POST` | `/enrollment-sessions/{id}/complete` | Finalize enrollment |
 
-| Route | Method | Lambda | Description |
-|---|---|---|---|
-| `/upload-url` | GET | `GetUploadUrlFunction` | Generates a presigned S3 URL for image upload |
-| `/enroll` | POST | `EnrollFunction` | Processes enrollment via SageMaker + OpenSearch |
+### Access Control
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/access-requests` | Request access to animal data |
+| `GET` | `/access-requests` | List sent requests |
+| `GET` | `/access-requests/incoming` | List incoming requests |
+| `POST` | `/access-requests/{id}/resolve` | Approve/deny request |
 
-### Backend (Lambda — environment variables)
-| Variable | Description |
-|---|---|
-| `S3_BUCKET_NAME` | S3 bucket for animal images |
-| `SAGEMAKER_ENDPOINT_NAME` | SageMaker endpoint for embeddings |
-| `OPENSEARCH_ENDPOINT` | OpenSearch cluster endpoint |
-| `OPENSEARCH_INDEX` | OpenSearch index name (default: `livestock-embeddings`) |
-| `SIMILARITY_THRESHOLD` | Cosine similarity threshold (default: `0.85`) |
-| `ALLOWED_ORIGIN` | CORS allowed origin (set to your CloudFront domain in production) |
+### Analytics (Government)
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/analytics/summary` | Overview metrics |
+| `GET` | `/analytics/states` | State-wise enrollment |
+| `GET` | `/analytics/trends` | Enrollment trends |
+| `GET` | `/analytics/breeds` | Breed distribution |
+| `GET` | `/analytics/fraud` | Fraud statistics |
+| `GET` | `/analytics/agents` | Agent performance |
+
+### GenAI
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/ai-assistant` | AI Vet Assistant query |
+| `POST` | `/ai-chat` | Conversational AI chat |
+| `GET` | `/ai-assistant/outbreaks` | Get active outbreak alerts |
+| `POST` | `/ai-assistant/outbreaks/scan` | Trigger outbreak scan |
+| `GET` | `/ai/animal-report/{animal_id}` | Generate AI health report |
+| `GET` | `/ai/fraud-reasons/{animal_id}` | Fraud score breakdown (admin/gov) |
+
+### Profile
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET/POST` | `/me` | Get / update user profile |
 
 ---
 
-## Hosting on AWS — Step-by-Step Procedure
+## AI & ML Pipeline
 
-This section describes how to deploy the full Pashu-Aadhaar stack (backend + frontend) on AWS.
+### In-Browser Detection (Zero Server Cost)
+1. **YOLOv8n** — detects cow presence in camera feed via ONNX Runtime Web
+2. **Custom Muzzle Model** — locates muzzle region within detected cow
+3. Both models run entirely in the browser — no API calls needed
 
-### Prerequisites
+### Server-Side Processing
+4. **SageMaker CLIP** — generates 512-dimension embedding vectors from muzzle images
+5. **OpenSearch kNN** — cosine similarity search against enrolled embeddings (threshold: 0.85)
 
-- **AWS Account** with appropriate permissions (IAM, Lambda, API Gateway, S3, SageMaker, OpenSearch)
-- **AWS CLI** installed and configured — `aws configure`
-- **AWS SAM CLI** installed — [Install SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
-- **Node.js 18+** and **npm 9+**
+### Embedding Weights
+| Source | Weight |
+|--------|--------|
+| Muzzle print | 80% |
+| Cow body | 15% |
+| Body texture | 5% |
 
-### Step 1 — Install Dependencies and Build
+### GenAI (Amazon Bedrock — Nova Lite v1:0)
+- **Vet Assistant** — contextual veterinary advice
+- **Chat Mode** — multi-turn conversations
+- **Health Reports** — structured analysis from DynamoDB records
+- **Outbreak Analysis** — AI-powered risk assessment and containment recommendations
+- **Fraud Explanations** — human-readable reasons for fraud scores
 
-```bash
-# From the project root
-npm run install:all
+---
 
-# Build the backend Lambda functions
-npm run build:backend
+## Fraud Detection System
 
-# Build the frontend
-npm run build:frontend
-```
+Five sub-scores combined into `fraud_risk_score` (0–100):
 
-### Step 2 — Build and Deploy the Backend with SAM
+| Sub-Score | What It Measures |
+|-----------|------------------|
+| `agent_behavior_score` | Enrollment rate limiting, suspicious patterns |
+| `device_trust_score` | Device fingerprint reuse across accounts |
+| `location_consistency_score` | GPS coordinates vs registered address |
+| `image_quality_score` | Detection confidence scores during capture |
+| `duplicate_embedding_score` | Similarity to previously enrolled animals |
 
-SAM uses the `template.yaml` at the project root to provision all AWS resources (Lambda functions, API Gateway, S3 bucket, IAM roles).
+**Risk Levels:** Low (0–25) · Medium (26–50) · High (51–75) · Critical (76–100)
 
-```bash
-# Build the SAM application
-sam build
+Fraud scores are **only visible to government and admin roles**. A detailed "Why this score?" modal shows sub-score breakdown with visual progress bars.
 
-# Deploy (first time — interactive guided setup)
-sam deploy --guided
-```
+---
 
-During the guided deployment you will be prompted for:
+## Seed Data
 
-| Parameter | Description | Example |
-|---|---|---|
-| **Stack Name** | CloudFormation stack name | `pashu-aadhaar-stack` |
-| **AWS Region** | Deployment region | `ap-south-1` |
-| **Stage** | Environment stage | `prod` |
-| **S3BucketName** | Bucket for animal images (must be globally unique) | `pashu-aadhaar-images-prod` |
-| **SageMakerEndpointName** | Your SageMaker inference endpoint | `livestock-embedding-endpoint` |
-| **OpenSearchEndpoint** | OpenSearch domain endpoint URL | `https://search-xxx.ap-south-1.es.amazonaws.com` |
-| **OpenSearchIndex** | Index name for embeddings | `livestock-embeddings` |
-| **SimilarityThreshold** | Cosine similarity threshold | `0.85` |
-| **AllowedOrigin** | CORS origin (your CloudFront domain) | `https://d1234abcd.cloudfront.net` |
+The `seed-data/` module populates all 13+ DynamoDB tables with realistic Indian-context data:
 
-SAM saves your answers in `samconfig.toml` so subsequent deploys only need:
-
-```bash
-sam deploy
-```
-
-After deployment, SAM outputs the **API Gateway URL**, for example:
-
-```
-https://<api-id>.execute-api.<region>.amazonaws.com/prod
-```
-
-### Step 3 — Deploy the Frontend to S3 + CloudFront
-
-1. **Create an S3 bucket for static hosting:**
-
-   ```bash
-   aws s3 mb s3://pashu-aadhaar-frontend-prod --region ap-south-1
-   ```
-
-2. **Configure the frontend to use the API Gateway URL:**
-
-   ```bash
-   cd frontend
-   cp .env.example .env
-   ```
-
-   Edit `.env`:
-   ```
-   VITE_API_BASE_URL=https://<api-id>.execute-api.<region>.amazonaws.com/prod
-   ```
-
-3. **Rebuild the frontend with the production API URL:**
-
-   ```bash
-   npm run build
-   ```
-
-4. **Upload the build to S3:**
-
-   ```bash
-   aws s3 sync dist/ s3://pashu-aadhaar-frontend-prod --delete
-   ```
-
-5. **Create a CloudFront distribution** pointing to the S3 bucket:
-
-   ```bash
-   aws cloudfront create-distribution \
-     --origin-domain-name pashu-aadhaar-frontend-prod.s3.amazonaws.com \
-     --default-root-object index.html
-   ```
-
-   > For production, configure a custom domain, SSL certificate via ACM, and an Origin Access Identity (OAI) so the S3 bucket stays private.
-
-6. **Update the AllowedOrigin** in your SAM stack to match the CloudFront domain:
-
-   ```bash
-   sam deploy --parameter-overrides AllowedOrigin=https://d1234abcd.cloudfront.net
-   ```
-
-### Step 4 — Set Up Supporting AWS Services
-
-#### SageMaker Endpoint
-
-Deploy your trained livestock embedding model to a SageMaker real-time inference endpoint. The endpoint name must match the `SageMakerEndpointName` parameter.
-
-#### OpenSearch Domain
-
-Create an Amazon OpenSearch Service domain and configure a `livestock-embeddings` index with a `knn_vector` field for storing embeddings:
-
-```json
-PUT /livestock-embeddings
-{
-  "settings": {
-    "index.knn": true
-  },
-  "mappings": {
-    "properties": {
-      "embedding": {
-        "type": "knn_vector",
-        "dimension": 512  // adjust to match your SageMaker model's output dimension
-      },
-      "livestock_id": { "type": "keyword" },
-      "image_key": { "type": "keyword" },
-      "enrolled_at": { "type": "date" }
-    }
-  }
-}
-```
-
-### Step 5 — Verify the Deployment
+- **300 animals** across 20 Indian states, 16 breeds
+- **75+ farmers**, 10 agents, veterinarians, insurers
+- Health records, milk yields, insurance policies, loan collateral
+- Breed-state affinity mapping (70% native breed probability)
 
 ```bash
-# Test the upload-url endpoint
-curl "https://<api-id>.execute-api.<region>.amazonaws.com/prod/upload-url?fileName=test.jpg&contentType=image/jpeg"
+cd seed-data
+npm install
 
-# Test the enroll endpoint
-curl -X POST "https://<api-id>.execute-api.<region>.amazonaws.com/prod/enroll" \
-  -H "Content-Type: application/json" \
-  -d '{"imageKey": "uploads/test.jpg"}'
+# Dry run (preview only)
+npm run seed:dry-run
+
+# Seed all tables
+npm run seed
+
+# Seed with embeddings
+npm run seed:embeddings
+
+# Clear all data
+npm run clear:all
 ```
 
-Open the CloudFront URL in your browser to use the enrollment portal.
+---
+
+## Internationalization
+
+The platform supports **7 languages** with full UI translations:
+
+| Language | Code |
+|----------|------|
+| English | `en` |
+| Hindi | `hi` |
+| Telugu | `te` |
+| Tamil | `ta` |
+| Kannada | `kn` |
+| Marathi | `mr` |
+| Bengali | `bn` |
+
+Users can switch languages via the language selector in the navigation bar. Voice accessibility (text-to-speech) works across all supported languages.
+
+---
+
+## Role-Based Access Control
+
+| Role | Capabilities |
+|------|-------------|
+| **Farmer (owner)** | Register animals, view own animals, track milk/health, request enrollment |
+| **Agent** | Accept enrollment requests, conduct multi-step enrollment sessions |
+| **Veterinarian** | View animal health data, add health records, AI assistant |
+| **Insurance** | View insured animals, manage policies, fraud score access |
+| **Bank** | View loan collateral animals |
+| **Government** | Full analytics dashboard, all animals, fraud scoring, outbreak monitoring |
+| **Admin** | Full system access, all roles combined |
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 

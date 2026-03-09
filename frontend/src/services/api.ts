@@ -345,3 +345,49 @@ export async function triggerOutbreakScan(
   );
   return res.data;
 }
+
+// ─── AI Health Report ────────────────────────────────────────────────
+export async function getAiHealthReport(
+  animalId: string,
+  token: string
+): Promise<{
+  report: string;
+  animal_id: string;
+  report_id: string;
+  generated_at: string;
+  animal_summary: {
+    species: string;
+    breed: string;
+    age: string;
+    owner: string;
+    status: string;
+  };
+}> {
+  const res = await apiClient.get(`/ai/animal-report/${animalId}`, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+// ─── Fraud Score Reasons ─────────────────────────────────────────────
+export async function getFraudReasons(
+  animalId: string,
+  token: string
+): Promise<{
+  animal_id: string;
+  fraud_risk_score: number;
+  risk_level: string;
+  reasons: string[];
+  sub_scores: {
+    agent_behavior: number;
+    device_trust: number;
+    location_consistency: number;
+    image_quality: number;
+    duplicate_embedding: number;
+  } | null;
+}> {
+  const res = await apiClient.get(`/ai/fraud-reasons/${animalId}`, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}

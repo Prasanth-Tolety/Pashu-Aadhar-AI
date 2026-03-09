@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ROLE_CONFIG, UserRole } from '../types';
-import { getUploadUrl, updateAnimal as apiUpdateAnimal } from '../services/api';
+import { getUploadUrl, updateAnimal as apiUpdateAnimal, getAiHealthReport, getFraudReasons } from '../services/api';
 import { uploadToS3 } from '../services/s3';
 import axios from 'axios';
 import QRCodeCard from '../components/QRCodeCard';
@@ -215,6 +215,17 @@ export default function AnimalDetail() {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
 
+  // AI Health Report
+  const [healthReport, setHealthReport] = useState('');
+  const [healthReportLoading, setHealthReportLoading] = useState(false);
+  const [showHealthReport, setShowHealthReport] = useState(false);
+
+  // Fraud Score Reasons
+  const [fraudReasons, setFraudReasons] = useState<string[]>([]);
+  const [fraudSubScores, setFraudSubScores] = useState<Record<string, number> | null>(null);
+  const [showFraudReasons, setShowFraudReasons] = useState(false);
+  const [fraudReasonsLoading, setFraudReasonsLoading] = useState(false);
+
   const headers = { Authorization: idToken || '' };
 
   useEffect(() => {
@@ -324,6 +335,36 @@ export default function AnimalDetail() {
     }
   };
 
+  const handleGenerateReport = async () => {
+    if (!id || !idToken) return;
+    setHealthReportLoading(true);
+    setShowHealthReport(true);
+    setHealthReport('');
+    try {
+      const res = await getAiHealthReport(id, idToken);
+      setHealthReport(res.report);
+    } catch {
+      setHealthReport('Failed to generate health report. Please try again.');
+    } finally {
+      setHealthReportLoading(false);
+    }
+  };
+
+  const handleShowFraudReasons = async () => {
+    if (!id || !idToken) return;
+    setFraudReasonsLoading(true);
+    setShowFraudReasons(true);
+    try {
+      const res = await getFraudReasons(id, idToken);
+      setFraudReasons(res.reasons);
+      setFraudSubScores(res.sub_scores);
+    } catch {
+      setFraudReasons(['Unable to fetch fraud analysis details']);
+    } finally {
+      setFraudReasonsLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="detail-container">
@@ -369,7 +410,7 @@ export default function AnimalDetail() {
         )}
       </div>
 
-      {/* Fraud Risk Score — visible to gov/admin only */}
+      {/* Fraud Risk Score — visible to gov/admin/insurer only */}
       {isGovOrAdmin && animal.fraud_risk_score !== undefined && (
         <div className={`fraud-score-banner risk-${animal.risk_level || 'low'}`}>
           <div className="fraud-score-left">
@@ -381,16 +422,78 @@ export default function AnimalDetail() {
               <span className="fraud-score-value">{animal.fraud_risk_score.toFixed(1)} / 100</span>
             </div>
           </div>
-          <span className={`fraud-risk-badge badge-${animal.risk_level || 'low'}`}>
-            {(animal.risk_level || 'low').toUpperCase()}
-          </span>
-          {animal.fraud_flags && animal.fraud_flags.length > 0 && (
-            <div className="fraud-flags">
-              {animal.fraud_flags.map((f, i) => (
-                <span key={i} className="fraud-flag-chip">🚩 {f.replace(/_/g, ' ')}</span>
-              ))}
+          <div className="fraud-score-right-actions">
+            <button className="fraud-reasons-btn" onClick={handleShowFraudReasons} disabled={fraudReasonsLoading}>
+              {fraudReasonsLoading ? '⏳' : '🔍'} Why this score?
+            </button>
+            <span className={`fraud-risk-badge badge-${animal.risk_level || 'low'}`}>
+              {(animal.risk_level || 'low').toUpperCase()}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Fraud Reasons Modal */}
+      {showFraudReasons && (
+        <div className="modal-overlay" onClick={() => setShowFraudReasons(false)}>
+          <div className="modal-content fraud-reasons-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>🔍 Fraud Score Analysis</h3>
+              <button className="modal-close" onClick={() => setShowFraudReasons(false)}>✕</button>
             </div>
-          )}
+            {fraudReasonsLoading ? (
+              <div className="modal-loading"><div className="loading-spinner" /> Loading analysis...</div>
+            ) : (
+              <div className="modal-body">
+                <div className="fraud-score-summary">
+                  <span className={`fraud-risk-badge badge-${animal.risk_level || 'low'}`}>
+                    {(animal.risk_level || 'low').toUpperCase()}
+                  </span>
+                  <span className="fraud-score-big">{animal.fraud_risk_score?.toFixed(1)} / 100</span>
+                </div>
+                {fraudSubScores && (
+                  <div className="fraud-sub-scores">
+                    <h4>Sub-Score Breakdown</h4>
+                    <div className="sub-score-grid">
+                      <div className="sub-score-item">
+                        <span className="sub-score-label">🧑‍💼 Agent Behavior</span>
+                        <div className="sub-score-bar"><div className="sub-score-fill" style={{ width: `${fraudSubScores.agent_behavior || 0}%` }} /></div>
+                        <span className="sub-score-value">{fraudSubScores.agent_behavior || 0}</span>
+                      </div>
+                      <div className="sub-score-item">
+                        <span className="sub-score-label">📱 Device Trust</span>
+                        <div className="sub-score-bar"><div className="sub-score-fill" style={{ width: `${fraudSubScores.device_trust || 0}%` }} /></div>
+                        <span className="sub-score-value">{fraudSubScores.device_trust || 0}</span>
+                      </div>
+                      <div className="sub-score-item">
+                        <span className="sub-score-label">📍 Location</span>
+                        <div className="sub-score-bar"><div className="sub-score-fill" style={{ width: `${fraudSubScores.location_consistency || 0}%` }} /></div>
+                        <span className="sub-score-value">{fraudSubScores.location_consistency || 0}</span>
+                      </div>
+                      <div className="sub-score-item">
+                        <span className="sub-score-label">📷 Image Quality</span>
+                        <div className="sub-score-bar"><div className="sub-score-fill" style={{ width: `${fraudSubScores.image_quality || 0}%` }} /></div>
+                        <span className="sub-score-value">{fraudSubScores.image_quality || 0}</span>
+                      </div>
+                      <div className="sub-score-item">
+                        <span className="sub-score-label">🔄 Duplicate Check</span>
+                        <div className="sub-score-bar"><div className="sub-score-fill" style={{ width: `${fraudSubScores.duplicate_embedding || 0}%` }} /></div>
+                        <span className="sub-score-value">{fraudSubScores.duplicate_embedding || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="fraud-reasons-list">
+                  <h4>🚩 Reasons</h4>
+                  <ul>
+                    {fraudReasons.map((reason, idx) => (
+                      <li key={idx}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -476,7 +579,64 @@ export default function AnimalDetail() {
               </div>
               <span className="ai-link-arrow">→</span>
             </RouterLink>
+            {/* AI Health Report Generator */}
+            <div className="health-report-section">
+              <button
+                className="health-report-btn"
+                onClick={handleGenerateReport}
+                disabled={healthReportLoading}
+              >
+                {healthReportLoading ? (
+                  <><span className="loading-spinner-sm" /> Generating Report...</>
+                ) : (
+                  <>📋 Generate AI Health Report</>
+                )}
+              </button>
+            </div>
 
+            {/* Health Report Modal */}
+            {showHealthReport && (
+              <div className="modal-overlay" onClick={() => setShowHealthReport(false)}>
+                <div className="modal-content health-report-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h3>📋 AI Health Report</h3>
+                    <button className="modal-close" onClick={() => setShowHealthReport(false)}>✕</button>
+                  </div>
+                  {healthReportLoading ? (
+                    <div className="modal-loading">
+                      <div className="loading-spinner" />
+                      <p>Analyzing animal data and generating report...</p>
+                    </div>
+                  ) : (
+                    <div className="modal-body health-report-body">
+                      <div className="report-meta">
+                        <span>🐄 {animal.livestock_id}</span>
+                        <span>📅 {new Date().toLocaleDateString('en-IN')}</span>
+                      </div>
+                      <div className="report-content">
+                        {healthReport.split('\n').map((line, i) => {
+                          if (line.startsWith('**') && line.includes('**')) {
+                            const content = line.replace(/\*\*/g, '');
+                            return <h4 key={i} className="report-heading">{content}</h4>;
+                          }
+                          if (line.startsWith('•') || line.startsWith('- ') || line.startsWith('* ')) {
+                            return <p key={i} className="report-bullet">• {line.replace(/^[•\-*]\s*/, '')}</p>;
+                          }
+                          if (line.match(/^\d+\./)) {
+                            return <p key={i} className="report-step">{line}</p>;
+                          }
+                          return line.trim() ? <p key={i}>{line}</p> : <br key={i} />;
+                        })}
+                      </div>
+                      <div className="report-footer">
+                        <SpeakButton text={healthReport} size="normal" />
+                        <span className="report-disclaimer">⚠️ AI-generated report — consult a veterinarian for clinical decisions</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {perms.canEditDetails && !editing && (
               <button className="edit-details-btn" onClick={() => setEditing(true)}>✏️ {t.editDetails}</button>
             )}
