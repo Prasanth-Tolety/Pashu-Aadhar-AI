@@ -1,0 +1,72 @@
+Pashu Aadhaar AI — Feature Presentation Guide
+
+---
+
+1. Biometric Animal Identification (Face + Muzzle)
+What it does: Captures and matches animals using both face and muzzle images, similar to how Aadhaar works for humans.
+Business angle: Eliminates duplicate claims, ghost animals in subsidy schemes, and insurance fraud. Every animal gets a unique digital identity — no physical tags needed that can be removed or swapped.
+Technical angle: Uses a Siamese neural network with metric learning. The model generates embeddings stored in OpenSearch for sub-second cosine similarity search. Two biometric modalities (face + muzzle) increases identification accuracy beyond any single-factor system.
+Why OpenSearch over RDS/DynamoDB for search: Vector similarity search at scale requires specialized indexing (k-NN). OpenSearch's k-NN plugin handles this natively, whereas DynamoDB has no vector search and RDS would require full table scans.
+
+2. Fraud Detection & Scoring
+What it does: Every enrollment is automatically scored for fraud risk across multiple dimensions — biometric consistency, location, enrollment speed, and agent behavior patterns.
+Business angle: Government subsidy programs lose crores annually to duplicate registrations. This system flags suspicious enrollments before they enter the system, creating an audit trail for every animal.
+Technical angle: Scores are computed at enrollment time by Lambda, stored in a dedicated fraud_scores DynamoDB table, and surfaced to government/admin roles on the animal detail page with risk levels (low/medium/high/critical) and specific flag chips.
+Why DynamoDB: Single-digit millisecond read latency for fraud score lookups per animal. Unlike RDS (which requires connection pooling and schema migrations), DynamoDB scales automatically with zero administration.
+
+3. Role-Based Access Control (6 Roles)
+What it does: Farmers, enrollment agents, veterinarians, insurers, government officers, and admins each see a tailored dashboard with only the data and actions relevant to them.
+Business angle: Mirrors the real-world hierarchy of India's livestock ecosystem. Insurers only see what they need to process claims; farmers only see their own animals. This builds trust and ensures compliance with data privacy principles.
+Technical angle: Roles are stored as Cognito custom attributes and enforced at the Lambda level — not just the frontend. API Gateway + Cognito Authorizer rejects unauthorized calls before they even reach business logic.
+Why Cognito over custom auth: Cognito handles MFA, phone verification, token refresh, and throttling out of the box. Building this from scratch on EC2 or ECS would take months and introduce security risk.
+
+4. Multi-Language Support (7 Indian Languages)
+What it does: Full UI in English, Hindi, Telugu, Tamil, Kannada, Marathi, and Bengali.
+Business angle: India has 22 official languages. Rural farmers — the primary users — are often not English-literate. Language support directly determines adoption rate in target demographics.
+Technical angle: Implemented with i18n JSON bundles in React. Language is persisted per session with a dropdown selector on the home page and dashboard header. Zero performance overhead — translations are bundled at build time.
+
+5. Enrollment Agent Workflow
+What it does: A structured 5-step enrollment flow for field agents — face capture, muzzle capture, details entry, review, and submit with real-time YOLO detection.
+Business angle: Ensures standardized, tamper-resistant enrollments in the field. Agents can't skip steps or submit low-quality images. Creates accountability via session logs tied to agent ID.
+Technical angle: YOLOv8/YOLOv10 runs directly in the browser using ONNX Runtime Web. No image is sent to the server until it passes confidence thresholds locally, saving bandwidth and ensuring quality at source. Deferred S3 uploads keep the UI responsive.
+Why SageMaker over self-hosted inference: SageMaker managed endpoints auto-scale, support GPU instances, handle model versioning, and integrate directly with IAM. Running inference on EC2 would require manual scaling, patching, and 24/7 uptime management.
+
+6. Government Analytics Dashboard
+What it does: An interactive India map with state-level drill-down, enrollment trends, breed distribution, fraud overview, and agent leaderboard.
+Business angle: Gives policymakers a real-time view of livestock registration progress by state, fraud hotspots, and which agents are most productive — turning raw data into governance insight.
+Technical angle: Six dedicated analytics Lambda endpoints aggregate data from DynamoDB and return structured JSON. Frontend uses Recharts for area, bar, pie, and line charts. The India SVG map is interactive — click a state to drill into district data.
+
+7. QR Code Identity Cards
+What it does: Every enrolled animal gets a scannable QR code that links to its full profile — breed, health history, ownership, insurance status.
+Business angle: Field-usable animal identity. A veterinarian, insurer, or government inspector can scan the QR to instantly pull up verifiable animal data. No app login needed for verification.
+Technical angle: QR generated client-side using the qrcode library encoding the animal's livestock ID. The /verify/:id route is public-facing, so it works without authentication for field use cases.
+
+8. Health Records & Milk Yield Tracking
+What it does: Veterinarians log vaccination records, diagnoses, and treatments. Milk yield is tracked daily with fat and SNF percentage.
+Business angle: Creates a complete cattle lifecycle record. Insurance companies can price premiums accurately; government can track herd health trends; farmers can prove the value of their animals for loans.
+Technical angle: Stored in dedicated DynamoDB tables (health_records, milk_yields) with livestock_id as the partition key for efficient per-animal queries. Each record type has its own Lambda handler endpoint.
+
+9. Insurance Policy Management
+What it does: Insurance policies are linked to individual animals, with coverage amounts, premium details, and policy status tracked in the system.
+Business angle: Closes the loop between animal identity and financial products. Insurers can verify the animal exists and is unique before issuing a policy — ending ghost-animal insurance fraud.
+Technical angle: insurance_policies table in DynamoDB with policy_id as key and livestock_id as a GSI for reverse lookups. Surfaced in the animal detail page for insurer and government roles.
+
+10. CloudWatch Monitoring for Admins
+What it does: A dedicated Logs tab in the admin dashboard links directly to all 8 Lambda function log groups in AWS CloudWatch.
+Business angle: Reduces time-to-diagnosis for production issues. Instead of searching through AWS Console, admins have one-click access to all relevant logs from within the app.
+Technical angle: Links are constructed dynamically using the known Lambda function naming convention and encoded for CloudWatch's URL format. No extra infrastructure needed.
+Why Lambda + CloudWatch over ECS + third-party logging: Lambda automatically ships logs to CloudWatch with zero configuration. ECS requires log driver setup, log group creation, and often a third-party tool like Datadog. For a serverless-first architecture, CloudWatch is the natural, zero-cost-at-low-volume choice.
+
+11. Serverless-First Architecture
+What it does: The entire backend runs on AWS Lambda — no servers to manage, no EC2 instances, no container clusters.
+Business angle: Near-zero cost when idle. The system can handle 1 user or 100,000 users with the same infrastructure. Perfect for a government program that may have burst usage during enrollment drives.
+Technical angle: 8 Lambda functions, each individually deployable via AWS SAM. Cold start is mitigated by Node.js 20 runtime. API Gateway provides throttling, HTTPS, and CORS handling without additional infrastructure.
+Why Lambda over EC2/ECS: EC2 requires 24/7 payment even when idle. ECS adds container orchestration complexity. Lambda's pay-per-invocation model is ideal for a platform with variable, unpredictable traffic patterns typical of government programs.
+
+12. S3 + CloudFront for Frontend Delivery
+What it does: The React frontend is a static build deployed to S3 and served globally via CloudFront CDN.
+Business angle: Sub-100ms load times anywhere in India. No web server to maintain. Scales to millions of simultaneous users during national enrollment campaigns.
+Why CloudFront over a traditional web server: CloudFront has 450+ edge locations globally, built-in HTTPS, DDoS protection via AWS Shield, and zero-configuration scaling. A traditional web server would require load balancers, auto-scaling groups, and certificate management.
+
+Standout Summary for Presentation
+Pashu Aadhaar AI is India's first full-stack, biometric livestock identity platform built entirely on serverless AWS infrastructure — combining on-device AI inference, cloud-scale vector search, role-aware governance dashboards, and fraud detection into a single, zero-maintenance system that works for a farmer in a remote village and a government officer in Delhi simultaneously.

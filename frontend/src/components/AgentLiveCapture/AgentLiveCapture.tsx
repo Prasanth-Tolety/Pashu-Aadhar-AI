@@ -464,14 +464,14 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
       const dashOffset = (now / 80) % 30;
       ctx.save();
       ctx.strokeStyle = 'rgba(34,197,94,0.5)';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.setLineDash([8, 5]);
       ctx.lineDashOffset = dashOffset;
       ctx.beginPath();
       ctx.ellipse(guideCx, guideCy, Math.max(guideRx, 20), Math.max(guideRy, 15), 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.font = 'bold 11px sans-serif';
+      ctx.font = 'bold 20px sans-serif';
       ctx.fillStyle = 'rgba(34,197,94,0.7)';
       ctx.textAlign = 'center';
       ctx.fillText('👃 Muzzle here', guideCx, guideCy + Math.max(guideRy, 15) + 14);
@@ -511,7 +511,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
     const mRy = muzzle.height * 0.55;
     ctx.save();
     ctx.strokeStyle = isStable ? 'rgba(34,197,94,0.8)' : 'rgba(245,158,11,0.6)';
-    ctx.lineWidth = isStable ? 3 : 2;
+    ctx.lineWidth = isStable ? 5 : 3;
     ctx.beginPath();
     ctx.ellipse(mCx, mCy, mRx, mRy, 0, 0, Math.PI * 2);
     ctx.stroke();
@@ -1163,7 +1163,7 @@ export default function AgentLiveCapture({ onSubmit, onClose, onStepCapture }: A
                     className="btn agent-force-btn"
                     onClick={handleForceCapture}
                   >
-                    ⚡ Force Capture
+                    ⚡ Capture
                   </button>
                 )}
 

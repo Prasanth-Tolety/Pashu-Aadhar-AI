@@ -276,7 +276,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
     ctx.strokeRect(cowDet.x, cowDet.y, cowDet.width, cowDet.height);
 
     const label = `🐄 Cow ${Math.round(cowDet.confidence * 100)}%`;
-    ctx.font = 'bold 14px sans-serif';
+    ctx.font = 'bold 20px sans-serif';
     const tw = ctx.measureText(label).width;
     ctx.fillStyle = cowColor;
     ctx.fillRect(cowDet.x, cowDet.y - 24, tw + 12, 24);
@@ -300,7 +300,7 @@ export default function CameraCapture({ onCapture, onClose }: CameraCaptureProps
       ctx.ellipse(guideCx, guideCy, Math.max(guideRx, 15), Math.max(guideRy, 12), 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.font = 'bold 10px sans-serif';
+      ctx.font = 'bold 20px sans-serif';
       ctx.fillStyle = 'rgba(34,197,94,0.7)';
       ctx.textAlign = 'center';
       ctx.fillText('👃 Muzzle here', guideCx, guideCy + Math.max(guideRy, 12) + 14);

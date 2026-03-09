@@ -43,66 +43,15 @@ function extractClaims(event: APIGatewayProxyEvent) {
 }
 
 /**
- * Assign an agent using round-robin strategy.
- * Scans user_role_mapping for enrollment_agent roles, picks the one with fewest active assignments.
+ * Assign an agent — HARDCODED for presentation demo.
+ * Always assigns to Ravi Kumar (default enrollment agent +919876543215).
  */
 async function assignAgent(): Promise<{ agentId: string; agentOwnerId: string; agentName: string } | null> {
-  try {
-    // Find all enrollment agents
-    const agentMappings = await ddbClient.send(new ScanCommand({
-      TableName: USER_ROLE_MAPPING_TABLE,
-      FilterExpression: '#r = :role',
-      ExpressionAttributeNames: { '#r': 'role' },
-      ExpressionAttributeValues: { ':role': 'enrollment_agent' },
-    }));
-
-    const agents = agentMappings.Items || [];
-    if (agents.length === 0) return null;
-
-    // Count active assignments per agent
-    const agentLoads: Array<{ userId: string; ownerId: string; name: string; load: number }> = [];
-
-    for (const agent of agents) {
-      const activeCount = await ddbClient.send(new QueryCommand({
-        TableName: ENROLLMENT_REQUESTS_TABLE,
-        IndexName: 'agent-index',
-        KeyConditionExpression: 'assigned_agent_id = :aid',
-        FilterExpression: '#s IN (:s1, :s2)',
-        ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: {
-          ':aid': agent.user_id,
-          ':s1': 'assigned',
-          ':s2': 'in_progress',
-        },
-        Select: 'COUNT',
-      }));
-
-      // Fetch agent name from owners table
-      let agentName = agent.user_id;
-      try {
-        const ownerRes = await ddbClient.send(new GetCommand({
-          TableName: OWNERS_TABLE,
-          Key: { owner_id: agent.owner_id || `OWN-${agent.user_id.substring(0, 8)}` },
-        }));
-        if (ownerRes.Item?.name) agentName = ownerRes.Item.name;
-      } catch { /* use fallback name */ }
-
-      agentLoads.push({
-        userId: agent.user_id,
-        ownerId: agent.owner_id || `OWN-${agent.user_id.substring(0, 8)}`,
-        name: agentName,
-        load: activeCount.Count || 0,
-      });
-    }
-
-    // Pick agent with lowest load (round-robin via load balancing)
-    agentLoads.sort((a, b) => a.load - b.load);
-    const selected = agentLoads[0];
-    return { agentId: selected.userId, agentOwnerId: selected.ownerId, agentName: selected.name };
-  } catch (err) {
-    logger.error('Agent assignment failed', err);
-    return null;
-  }
+  return {
+    agentId: 'a4080488-8061-70e6-a2b5-e4c83057dd33',
+    agentOwnerId: 'OWN-AGT-001',
+    agentName: 'Ravi Kumar',
+  };
 }
 
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
