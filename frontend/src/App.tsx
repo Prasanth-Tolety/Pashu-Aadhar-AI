@@ -12,6 +12,9 @@ import AnimalDetail from './pages/AnimalDetail'
 import Profile from './pages/Profile'
 import GovDashboard from './pages/GovDashboard'
 import AnimalVerification from './pages/AnimalVerification'
+import AiAssistant from './pages/AiAssistant'
+import OutbreakAlerts from './pages/OutbreakAlerts'
+import ChatbotWidget from './components/ChatbotWidget'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -108,7 +111,24 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/ai-assistant"
+          element={
+            <ProtectedRoute>
+              <AiAssistant />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/outbreak-alerts"
+          element={
+            <ProtectedRoute>
+              <OutbreakAlerts />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
+      <ChatbotWidget />
     </div>
   )
 }

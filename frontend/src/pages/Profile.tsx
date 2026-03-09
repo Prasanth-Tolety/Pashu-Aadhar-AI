@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getProfile, updateProfile, getAnimalsByOwner } from '../services/api';
 import { ROLE_CONFIG, UserRole } from '../types';
+import VoiceToggle from '../components/VoiceToggle';
+import SpeakButton from '../components/SpeakButton';
 import '../styles/Profile.css';
 
 interface ProfileData {
@@ -112,7 +114,8 @@ export default function Profile() {
     <div className="profile-container">
       <header className="profile-header">
         <Link to="/dashboard" className="back-link">{t.backToDashboard}</Link>
-        <h1>{t.myProfile}</h1>
+        <h1>{t.myProfile} <SpeakButton text={t.myProfile} /></h1>
+        <VoiceToggle />
       </header>
 
       <div className="profile-body">

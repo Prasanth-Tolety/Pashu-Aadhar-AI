@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSelector from '../components/LanguageSelector';
+import VoiceToggle from '../components/VoiceToggle';
+import SpeakButton from '../components/SpeakButton';
 import {
   getAnimalsByOwner,
   getAccessibleAnimals,
@@ -185,6 +187,7 @@ export default function Dashboard() {
           <Link to="/dashboard" className="header-brand">🐄 {t.appNameHindi}</Link>
         </div>
         <div className="header-right">
+          <VoiceToggle />
           <LanguageSelector compact />
           <div className="user-info">
             <span className="user-name">{user?.name || 'User'}</span>
@@ -227,7 +230,7 @@ export default function Dashboard() {
             {/* Role-Specific Summary Stats */}
             <section className="dash-summary-stats">
               <div className="summary-header">
-                <h2>📊 {t.overview}</h2>
+                <h2>📊 {t.overview} <SpeakButton text={t.overview} /></h2>
                 <button onClick={loadDashboardData} className="refresh-btn-inline" title={t.refresh}>🔄 {t.refresh}</button>
               </div>
               <div className="summary-cards">
@@ -322,8 +325,18 @@ export default function Dashboard() {
               </Link>
               {isGovOrAdmin && (
                 <Link to="/gov-dashboard" className="action-card enroll-action" style={{ background: 'linear-gradient(135deg, #1a237e, #283593)' }}>
-                  <span className="action-icon">�</span>
+                  <span className="action-icon">📊</span>
                   <span className="action-label">Full Analytics Dashboard</span>
+                </Link>
+              )}
+              <Link to="/ai-assistant" className="action-card enroll-action" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}>
+                <span className="action-icon">🤖</span>
+                <span className="action-label">AI Vet Assistant</span>
+              </Link>
+              {isGovOrAdmin && (
+                <Link to="/outbreak-alerts" className="action-card enroll-action" style={{ background: 'linear-gradient(135deg, #dc2626, #ea580c)' }}>
+                  <span className="action-icon">🦠</span>
+                  <span className="action-label">Outbreak Monitor</span>
                 </Link>
               )}
             </section>
@@ -332,7 +345,7 @@ export default function Dashboard() {
             {isFarmer && (
               <section className="animals-section">
                 <div className="section-title-row">
-                  <h2>🐮 {t.myAnimals}</h2>
+                  <h2>🐮 {t.myAnimals} <SpeakButton text={t.myAnimals} /></h2>
                   <button onClick={loadDashboardData} className="refresh-btn-inline small" title={t.refresh}>🔄</button>
                 </div>
                 {loading ? (
@@ -444,7 +457,7 @@ export default function Dashboard() {
             {/* Vet/Insurer: Request Access Form */}
             {isVetOrInsurer && (
               <section className="access-request-section">
-                <h2>🔐 {t.requestAnimalAccess}</h2>
+                <h2>🔐 {t.requestAnimalAccess} <SpeakButton text={t.requestAnimalAccess} /></h2>
                 <p className="section-note">{t.requestAccessDesc}</p>
                 <form onSubmit={handleRequestAccess} className="access-request-form">
                   <input type="text" value={accessRequestId} onChange={(e) => setAccessRequestId(e.target.value)} placeholder={t.livestockId} className="search-input" required />
@@ -474,7 +487,7 @@ export default function Dashboard() {
             {/* Farmer: Incoming Access Requests */}
             {isFarmer && (
               <section className="incoming-requests-section">
-                <h2>📩 {t.incomingAccessRequests} {pendingCount > 0 && <span className="header-badge">{pendingCount} {t.pending}</span>}</h2>
+                <h2>📩 {t.incomingAccessRequests} {pendingCount > 0 && <span className="header-badge">{pendingCount} {t.pending}</span>} <SpeakButton text={t.incomingAccessRequests} /></h2>
                 {incomingRequests.length === 0 ? (
                   <div className="empty-state"><p>{t.noAccessRequests}</p></div>
                 ) : (

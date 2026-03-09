@@ -1,0 +1,1 @@
+ C:\\PashuMobile\\.dart_tool\\flutter_build\\22fee87f6b652ad789ad79fe71078c26\\native_assets.json: 

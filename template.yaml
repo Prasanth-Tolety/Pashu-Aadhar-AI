@@ -168,6 +168,18 @@ Resources:
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/enrollment_agents/index/*'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fraud_scores'
                   - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/fraud_scores/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/ai_interactions'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/ai_interactions/index/*'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/outbreak_alerts'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/outbreak_alerts/index/*'
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0'
+                  - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-*'
+                  - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-*'
 
   # API Gateway
   PashuAadhaarApi:
@@ -1102,6 +1114,220 @@ Resources:
         - AttributeName: agent_id
           KeyType: HASH
 
+  # DynamoDB Table: AI Interactions (chat & assistant logs)
+  AIInteractionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ai_interactions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: interaction_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: interaction_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: user-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # DynamoDB Table: Outbreak Alerts
+  OutbreakAlertsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: outbreak_alerts
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: alert_id
+          AttributeType: S
+        - AttributeName: state
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: alert_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: state-index
+          KeySchema:
+            - AttributeName: state
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # GenAI Assistant Lambda
+  GenAIAssistantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-genai-assistant-${Stage}'
+      CodeUri: backend/
+      Handler: genai/handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: GenAI Vet Assistant, Copilot Chat, and Outbreak Detection powered by Amazon Bedrock
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+          BEDROCK_MODEL_ID: 'amazon.nova-lite-v1:0'
+          BEDROCK_REGION: !Ref AWS::Region
+      Events:
+        AiAssistant:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-assistant
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        AiAssistantOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-assistant
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        AiChat:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-chat
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        AiChatOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-chat
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        ListOutbreaks:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-assistant/outbreaks
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        ListOutbreaksOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-assistant/outbreaks
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        ScanOutbreaks:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-assistant/outbreaks/scan
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuth
+        ScanOutbreaksOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai-assistant/outbreaks/scan
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        # AI Health Report
+        AnimalReport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/animal-report/{animal_id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        AnimalReportOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/animal-report/{animal_id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+        # Fraud Score Reasons
+        FraudReasons:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/fraud-reasons/{animal_id}
+            Method: GET
+            Auth:
+              Authorizer: CognitoAuth
+        FraudReasonsOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PashuAadhaarApi
+            Path: /ai/fraud-reasons/{animal_id}
+            Method: OPTIONS
+            Auth:
+              Authorizer: NONE
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - genai/handler.ts
+        External:
+          - '@aws-sdk/client-bedrock-runtime'
+
+  # Outbreak Monitor — Scheduled Lambda (EventBridge)
+  OutbreakMonitorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pashu-aadhaar-outbreak-monitor-${Stage}'
+      CodeUri: backend/
+      Handler: genai/outbreak-monitor.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Description: Scheduled outbreak detection - scans health records for disease clusters
+      Timeout: 120
+      MemorySize: 512
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: 'amazon.nova-lite-v1:0'
+          BEDROCK_REGION: !Ref AWS::Region
+      Events:
+        ScheduledScan:
+          Type: Schedule
+          Properties:
+            Schedule: rate(10 minutes)
+            Description: Scan for disease outbreaks every 10 minutes
+            Enabled: true
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - genai/outbreak-monitor.ts
+        External:
+          - '@aws-sdk/client-bedrock-runtime'
+
   # Allow enrollment-sessions Lambda to invoke enroll Lambda
   EnrollmentSessionsInvokeEnrollPermission:
     Type: AWS::IAM::Policy
@@ -1153,3 +1379,11 @@ Outputs:
   EnrollmentSessionsFunctionArn:
     Description: Enrollment Sessions Lambda function ARN
     Value: !GetAtt EnrollmentSessionsFunction.Arn
+
+  GenAIAssistantFunctionArn:
+    Description: GenAI Assistant Lambda function ARN
+    Value: !GetAtt GenAIAssistantFunction.Arn
+
+  OutbreakMonitorFunctionArn:
+    Description: Outbreak Monitor Lambda function ARN
+    Value: !GetAtt OutbreakMonitorFunction.Arn

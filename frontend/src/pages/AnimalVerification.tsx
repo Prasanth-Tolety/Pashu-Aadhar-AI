@@ -10,6 +10,7 @@ import { getUploadUrl, verifyAnimal } from '../services/api';
 import { uploadToS3 } from '../services/s3';
 import { VerifyResponse } from '../types';
 import LanguageSelector from '../components/LanguageSelector';
+import VoiceToggle from '../components/VoiceToggle';
 import '../styles/AnimalVerification.css';
 
 type VerifyStep = 'upload' | 'processing' | 'result';
@@ -107,6 +108,7 @@ export default function AnimalVerification() {
           <h1>🔍 Animal Verification</h1>
         </div>
         <div className="header-right">
+          <VoiceToggle />
           <LanguageSelector />
           {user && <span className="user-badge">{user.name || user.phoneNumber}</span>}
         </div>

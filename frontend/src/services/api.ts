@@ -292,3 +292,102 @@ export async function getAnalyticsAgents(token: string) {
   const res = await apiClient.get('/analytics/agents', { headers: authHeaders(token) });
   return res.data;
 }
+
+// ─── GenAI Assistant ─────────────────────────────────────────────────
+export async function askAiAssistant(
+  question: string,
+  animalId?: string,
+  token?: string | null
+): Promise<{ response: string; interaction_id: string; animal_id: string | null }> {
+  const res = await apiClient.post(
+    '/ai-assistant',
+    { question, animal_id: animalId || null },
+    { headers: authHeaders(token ?? null) }
+  );
+  return res.data;
+}
+
+export async function sendAiChat(
+  messages: Array<{ role: string; content: string }>,
+  chatId?: string,
+  animalId?: string,
+  token?: string | null
+): Promise<{ response: string; chat_id: string }> {
+  const res = await apiClient.post(
+    '/ai-chat',
+    { messages, chat_id: chatId || undefined, animal_id: animalId || null },
+    { headers: authHeaders(token ?? null) }
+  );
+  return res.data;
+}
+
+// ─── Outbreak Alerts ─────────────────────────────────────────────────
+export async function getOutbreakAlerts(
+  state?: string,
+  token?: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<{ alerts: any[] }> {
+  const res = await apiClient.get('/ai-assistant/outbreaks', {
+    params: state ? { state } : {},
+    headers: authHeaders(token ?? null),
+  });
+  return res.data;
+}
+
+export async function triggerOutbreakScan(
+  token?: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<{ alerts: any[]; scanned_at: string }> {
+  const res = await apiClient.post(
+    '/ai-assistant/outbreaks/scan',
+    {},
+    { headers: authHeaders(token ?? null) }
+  );
+  return res.data;
+}
+
+// ─── AI Health Report ────────────────────────────────────────────────
+export async function getAiHealthReport(
+  animalId: string,
+  token: string
+): Promise<{
+  report: string;
+  animal_id: string;
+  report_id: string;
+  generated_at: string;
+  animal_summary: {
+    species: string;
+    breed: string;
+    age: string;
+    owner: string;
+    status: string;
+  };
+}> {
+  const res = await apiClient.get(`/ai/animal-report/${animalId}`, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}
+
+// ─── Fraud Score Reasons ─────────────────────────────────────────────
+export async function getFraudReasons(
+  animalId: string,
+  token: string
+): Promise<{
+  animal_id: string;
+  fraud_risk_score: number;
+  risk_level: string;
+  reasons: string[];
+  sub_scores: {
+    agent_behavior: number;
+    device_trust: number;
+    location_consistency: number;
+    image_quality: number;
+    duplicate_embedding: number;
+  } | null;
+}> {
+  const res = await apiClient.get(`/ai/fraud-reasons/${animalId}`, {
+    headers: authHeaders(token),
+  });
+  return res.data;
+}

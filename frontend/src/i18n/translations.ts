@@ -342,6 +342,41 @@ export interface Translations {
   smsDeliveryError: string;
   unknownError: string;
   incorrectCredentials: string;
+
+  // AI Assistant & Outbreak Monitor
+  aiAssistantTitle: string;
+  aiPoweredBy: string;
+  aiDisclaimer: string;
+  aiVetAssistant: string;
+  aiFarmerCopilot: string;
+  aiAnimalIdOptional: string;
+  aiQuickQuestions: string;
+  aiDescribeSymptoms: string;
+  aiAnalyzing: string;
+  aiAskVet: string;
+  aiVetResponse: string;
+  aiServiceUnavailable: string;
+  aiChatWelcome: string;
+  aiChatWelcomeDesc: string;
+  aiTypeMessage: string;
+  aiClearChat: string;
+  aiQuickFever: string;
+  aiQuickLameness: string;
+  aiQuickMilk: string;
+  aiQuickVaccine: string;
+  aiQuickSkin: string;
+  aiQuickCalving: string;
+  aiOutbreakTitle: string;
+  aiOutbreakDesc: string;
+  aiFilterState: string;
+  aiAllStates: string;
+  aiTriggerScan: string;
+  aiScanning: string;
+  aiNoOutbreaks: string;
+  aiNoOutbreaksDesc: string;
+  aiCasesIn48h: string;
+  aiOutbreakLoadError: string;
+  aiOutbreakScanError: string;
 }
 
 // ─── English (default) ──────────────────────────────────────────────
@@ -658,6 +693,41 @@ const en: Translations = {
   smsDeliveryError: 'Unable to send SMS. Please ensure your phone number is correct and try again.',
   unknownError: 'An unexpected error occurred. Please try again.',
   incorrectCredentials: 'Incorrect phone number or password. Please try again.',
+
+  // AI Assistant & Outbreak Monitor
+  aiAssistantTitle: 'AI Vet Assistant',
+  aiPoweredBy: 'Powered by Amazon Bedrock (Claude AI)',
+  aiDisclaimer: 'AI-generated advice — always consult a qualified veterinarian',
+  aiVetAssistant: 'Vet Assistant',
+  aiFarmerCopilot: 'Farmer Copilot',
+  aiAnimalIdOptional: 'Animal ID (optional)',
+  aiQuickQuestions: 'Quick questions',
+  aiDescribeSymptoms: 'Describe the symptoms or ask a question about your animal...',
+  aiAnalyzing: 'Analyzing...',
+  aiAskVet: 'Ask AI Vet',
+  aiVetResponse: 'AI Vet Response',
+  aiServiceUnavailable: 'AI service is temporarily unavailable. Please try again.',
+  aiChatWelcome: "Hello! I'm your Pashu Aadhaar AI Copilot",
+  aiChatWelcomeDesc: 'Ask me anything about livestock health, vaccination schedules, milk management, insurance, or loans.',
+  aiTypeMessage: 'Type your message...',
+  aiClearChat: 'Clear chat',
+  aiQuickFever: 'My cow has fever and not eating',
+  aiQuickLameness: 'Animal is limping',
+  aiQuickMilk: 'Milk yield dropped suddenly',
+  aiQuickVaccine: 'What vaccines are due?',
+  aiQuickSkin: 'Skin lumps appeared',
+  aiQuickCalving: 'Cow cannot stand after calving',
+  aiOutbreakTitle: 'Disease Outbreak Monitor',
+  aiOutbreakDesc: 'AI-powered disease surveillance — monitors health records for unusual clusters and generates early warning alerts',
+  aiFilterState: 'Filter by State',
+  aiAllStates: 'All States',
+  aiTriggerScan: 'Run Outbreak Scan',
+  aiScanning: 'Scanning...',
+  aiNoOutbreaks: 'No Outbreak Alerts',
+  aiNoOutbreaksDesc: 'No disease clusters have been detected. The system continuously monitors health records.',
+  aiCasesIn48h: 'cases in 48h',
+  aiOutbreakLoadError: 'Failed to load outbreak alerts',
+  aiOutbreakScanError: 'Failed to trigger outbreak scan',
 };
 
 // ─── Hindi ──────────────────────────────────────────────────────────
@@ -970,6 +1040,41 @@ const hi: Translations = {
   smsDeliveryError: 'SMS भेजने में असमर्थ। कृपया अपना फ़ोन नंबर सही सुनिश्चित करें और पुनः प्रयास करें।',
   unknownError: 'एक अप्रत्याशित त्रुटि हुई। कृपया पुनः प्रयास करें।',
   incorrectCredentials: 'गलत फ़ोन नंबर या पासवर्ड। कृपया पुनः प्रयास करें।',
+
+  // AI Assistant & Outbreak Monitor
+  aiAssistantTitle: 'AI पशु चिकित्सा सहायक',
+  aiPoweredBy: 'Amazon Bedrock (Claude AI) द्वारा संचालित',
+  aiDisclaimer: 'AI-जनित सलाह — हमेशा योग्य पशु चिकित्सक से परामर्श करें',
+  aiVetAssistant: 'पशु चिकित्सा सहायक',
+  aiFarmerCopilot: 'किसान कोपायलट',
+  aiAnimalIdOptional: 'पशु ID (वैकल्पिक)',
+  aiQuickQuestions: 'त्वरित प्रश्न',
+  aiDescribeSymptoms: 'लक्षणों का वर्णन करें या अपने पशु के बारे में कोई प्रश्न पूछें...',
+  aiAnalyzing: 'विश्लेषण हो रहा है...',
+  aiAskVet: 'AI पशु चिकित्सक से पूछें',
+  aiVetResponse: 'AI पशु चिकित्सा उत्तर',
+  aiServiceUnavailable: 'AI सेवा अस्थायी रूप से अनुपलब्ध है। कृपया पुनः प्रयास करें।',
+  aiChatWelcome: 'नमस्ते! मैं आपका पशु आधार AI कोपायलट हूँ',
+  aiChatWelcomeDesc: 'पशु स्वास्थ्य, टीकाकरण, दूध प्रबंधन, बीमा, या ऋण के बारे में कुछ भी पूछें।',
+  aiTypeMessage: 'अपना संदेश लिखें...',
+  aiClearChat: 'चैट साफ़ करें',
+  aiQuickFever: 'मेरी गाय को बुखार है और खाना नहीं खा रही',
+  aiQuickLameness: 'पशु लंगड़ा रहा है',
+  aiQuickMilk: 'दूध उत्पादन अचानक गिर गया',
+  aiQuickVaccine: 'कौन से टीके बाकी हैं?',
+  aiQuickSkin: 'त्वचा पर गांठें दिखाई दीं',
+  aiQuickCalving: 'ब्याने के बाद गाय खड़ी नहीं हो पा रही',
+  aiOutbreakTitle: 'रोग प्रकोप मॉनिटर',
+  aiOutbreakDesc: 'AI-संचालित रोग निगरानी — स्वास्थ्य रिकॉर्ड की असामान्य क्लस्टर के लिए निगरानी और प्रारंभिक चेतावनी',
+  aiFilterState: 'राज्य के अनुसार फ़िल्टर',
+  aiAllStates: 'सभी राज्य',
+  aiTriggerScan: 'प्रकोप स्कैन चलाएं',
+  aiScanning: 'स्कैन हो रहा है...',
+  aiNoOutbreaks: 'कोई प्रकोप चेतावनी नहीं',
+  aiNoOutbreaksDesc: 'कोई रोग क्लस्टर नहीं पाया गया। सिस्टम लगातार स्वास्थ्य रिकॉर्ड की निगरानी कर रहा है।',
+  aiCasesIn48h: '48 घंटे में मामले',
+  aiOutbreakLoadError: 'प्रकोप चेतावनी लोड करने में विफल',
+  aiOutbreakScanError: 'प्रकोप स्कैन शुरू करने में विफल',
 };
 
 // ─── Telugu ─────────────────────────────────────────────────────────
@@ -1282,6 +1387,41 @@ const te: Translations = {
   smsDeliveryError: 'SMS పంపడం సాధ్యం కాలేదు. దయచేసి మీ ఫోన్ నంబర్ సరైనదని నిర్ధారించుకుని మళ్ళీ ప్రయత్నించండి.',
   unknownError: 'ఊహించని లోపం జరిగింది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
   incorrectCredentials: 'తప్పు ఫోన్ నంబర్ లేదా పాస్‌వర్డ్. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+
+  // AI Assistant & Outbreak Monitor
+  aiAssistantTitle: 'AI పశువైద్య సహాయకుడు',
+  aiPoweredBy: 'Amazon Bedrock (Claude AI) ద్వారా నడుస్తుంది',
+  aiDisclaimer: 'AI-ఉత్పత్తి సలహా — ఎల్లప్పుడూ అర్హులైన పశువైద్యుడిని సంప్రదించండి',
+  aiVetAssistant: 'పశువైద్య సహాయకుడు',
+  aiFarmerCopilot: 'రైతు కోపైలట్',
+  aiAnimalIdOptional: 'పశువు ID (ఐచ్ఛికం)',
+  aiQuickQuestions: 'త్వరిత ప్రశ్నలు',
+  aiDescribeSymptoms: 'లక్షణాలను వివరించండి లేదా మీ పశువు గురించి ప్రశ్న అడగండి...',
+  aiAnalyzing: 'విశ్లేషిస్తోంది...',
+  aiAskVet: 'AI వైద్యుడిని అడగండి',
+  aiVetResponse: 'AI పశువైద్య ప్రతిస్పందన',
+  aiServiceUnavailable: 'AI సేవ తాత్కాలికంగా అందుబాటులో లేదు. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+  aiChatWelcome: 'హలో! నేను మీ పశు ఆధార్ AI కోపైలట్',
+  aiChatWelcomeDesc: 'పశువుల ఆరోగ్యం, టీకాలు, పాల నిర్వహణ, బీమా లేదా రుణాల గురించి ఏదైనా అడగండి.',
+  aiTypeMessage: 'మీ సందేశాన్ని టైప్ చేయండి...',
+  aiClearChat: 'చాట్ క్లియర్ చేయండి',
+  aiQuickFever: 'నా ఆవుకు జ్వరం వచ్చింది, తినడం లేదు',
+  aiQuickLameness: 'పశువు కుంటుతోంది',
+  aiQuickMilk: 'పాల దిగుబడి అకస్మాత్తుగా తగ్గింది',
+  aiQuickVaccine: 'ఏ టీకాలు బాకీ ఉన్నాయి?',
+  aiQuickSkin: 'చర్మంపై గడ్డలు కనిపించాయి',
+  aiQuickCalving: 'ఈనిన తర్వాత ఆవు నిలబడలేకపోతోంది',
+  aiOutbreakTitle: 'వ్యాధి వ్యాప్తి మానిటర్',
+  aiOutbreakDesc: 'AI-ఆధారిత వ్యాధి నిఘా — ఆరోగ్య రికార్డుల్లో అసాధారణ నమూనాల కోసం పర్యవేక్షణ',
+  aiFilterState: 'రాష్ట్రం ప్రకారం ఫిల్టర్',
+  aiAllStates: 'అన్ని రాష్ట్రాలు',
+  aiTriggerScan: 'వ్యాప్తి స్కాన్ నడపండి',
+  aiScanning: 'స్కాన్ అవుతోంది...',
+  aiNoOutbreaks: 'వ్యాప్తి హెచ్చరికలు లేవు',
+  aiNoOutbreaksDesc: 'వ్యాధి క్లస్టర్లు గుర్తించబడలేదు. వ్యవస్థ నిరంతరం ఆరోగ్య రికార్డులను పర్యవేక్షిస్తోంది.',
+  aiCasesIn48h: '48 గంటల్లో కేసులు',
+  aiOutbreakLoadError: 'వ్యాప్తి హెచ్చరికలు లోడ్ చేయడం విఫలమైంది',
+  aiOutbreakScanError: 'వ్యాప్తి స్కాన్ ప్రారంభించడం విఫలమైంది',
 };
 
 // ─── Tamil ──────────────────────────────────────────────────────────
@@ -1594,6 +1734,41 @@ const ta: Translations = {
   smsDeliveryError: 'SMS அனுப்ப முடியவில்லை. உங்கள் தொலைபேசி எண் சரியானது என்பதை உறுதிசெய்து மீண்டும் முயற்சிக்கவும்.',
   unknownError: 'எதிர்பாராத பிழை ஏற்பட்டது. மீண்டும் முயற்சிக்கவும்.',
   incorrectCredentials: 'தவறான தொலைபேசி எண் அல்லது கடவுச்சொல். மீண்டும் முயற்சிக்கவும்.',
+
+  // AI Assistant & Outbreak Monitor
+  aiAssistantTitle: 'AI கால்நடை மருத்துவ உதவியாளர்',
+  aiPoweredBy: 'Amazon Bedrock (Claude AI) மூலம் இயங்குகிறது',
+  aiDisclaimer: 'AI-உருவாக்கிய ஆலோசனை — எப்போதும் தகுதியான கால்நடை மருத்துவரை அணுகுங்கள்',
+  aiVetAssistant: 'கால்நடை மருத்துவ உதவியாளர்',
+  aiFarmerCopilot: 'விவசாயி கோபைலட்',
+  aiAnimalIdOptional: 'விலங்கு ID (விருப்பம்)',
+  aiQuickQuestions: 'விரைவு கேள்விகள்',
+  aiDescribeSymptoms: 'அறிகுறிகளை விவரிக்கவும் அல்லது உங்கள் விலங்கு பற்றி கேள்வி கேளுங்கள்...',
+  aiAnalyzing: 'பகுப்பாய்வு செய்கிறது...',
+  aiAskVet: 'AI மருத்துவரிடம் கேளுங்கள்',
+  aiVetResponse: 'AI கால்நடை மருத்துவ பதில்',
+  aiServiceUnavailable: 'AI சேவை தற்காலிகமாக கிடைக்கவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  aiChatWelcome: 'வணக்கம்! நான் உங்கள் பசு ஆதார் AI கோபைலட்',
+  aiChatWelcomeDesc: 'கால்நடை ஆரோக்கியம், தடுப்பூசி, பால் மேலாண்மை, காப்பீடு அல்லது கடன்கள் பற்றி எதையும் கேளுங்கள்.',
+  aiTypeMessage: 'உங்கள் செய்தியை தட்டச்சு செய்யவும்...',
+  aiClearChat: 'அரட்டை அழிக்கவும்',
+  aiQuickFever: 'என் மாடுக்கு காய்ச்சல், சாப்பிடவில்லை',
+  aiQuickLameness: 'விலங்கு நொண்டுகிறது',
+  aiQuickMilk: 'பால் உற்பத்தி திடீரென குறைந்தது',
+  aiQuickVaccine: 'என்ன தடுப்பூசிகள் நிலுவையில் உள்ளன?',
+  aiQuickSkin: 'தோலில் கட்டிகள் தோன்றின',
+  aiQuickCalving: 'கன்று ஈன்ற பின் மாடு நிற்க முடியவில்லை',
+  aiOutbreakTitle: 'நோய் பரவல் கண்காணிப்பு',
+  aiOutbreakDesc: 'AI-இயக்கப்படும் நோய் கண்காணிப்பு — ஆரோக்கிய பதிவுகளில் அசாதாரண குழுக்களை கண்காணிக்கிறது',
+  aiFilterState: 'மாநிலம் மூலம் வடிகட்டு',
+  aiAllStates: 'அனைத்து மாநிலங்கள்',
+  aiTriggerScan: 'பரவல் ஸ்கேன் இயக்கு',
+  aiScanning: 'ஸ்கேன் செய்கிறது...',
+  aiNoOutbreaks: 'பரவல் எச்சரிக்கைகள் இல்லை',
+  aiNoOutbreaksDesc: 'நோய் குழுக்கள் கண்டறியப்படவில்லை. கணினி தொடர்ந்து ஆரோக்கிய பதிவுகளை கண்காணிக்கிறது.',
+  aiCasesIn48h: '48 மணி நேரத்தில் வழக்குகள்',
+  aiOutbreakLoadError: 'பரவல் எச்சரிக்கைகளை ஏற்ற முடியவில்லை',
+  aiOutbreakScanError: 'பரவல் ஸ்கேன் தொடங்க முடியவில்லை',
 };
 
 // ─── Kannada ────────────────────────────────────────────────────────
