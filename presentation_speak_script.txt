@@ -1,0 +1,117 @@
+Hi 
+India has 535 million livestock animals, and less than 12% are formally identified.
+Every year, the government loses thousands of crores to ghost animals,
+duplicate insurance claims, and fraudulent subsidy disbursements.
+
+Pashu Aadhaar AI solves this by giving every animal a permanent biometric identity —
+just like Aadhaar for humans — using AI-powered face and muzzle recognition.
+
+For rural India, this is transformational.
+A farmer can now prove ownership of his cattle to get a bank loan.
+An insurer can verify the animal actually exists before paying a claim.
+And the government gets real-time fraud detection before money leaves the treasury.
+
+The AI assists at every step — from guiding the live capture to generating a unique biometric identity for the animal in the cloud,
+ making every enrollment accurate and fraud-proof.
+
+Let me show you how it works.
+
+This is the farmer dashboard for Kanaka Raju — a real farmer profile from Andhra Pradesh.
+Notice the platform detects his role automatically and shows him only what matters —
+his animals, their health, and the ability to request enrollment.
+
+Here you can see the animal we already have registered —
+breed, age, location, and status all visible at a glance.
+Let me click into it.
+
+This is the animal detail page — breed, gender, age, identifiable marks,
+health records, milk yield, insurance policy — everything linked to one unique ID.
+All of these fields are editable by the farmer.
+And here at the top is the QR code — anyone can scan this in the field
+and instantly pull up the full profile with no login required.
+
+We can modify this according to our security needs
+
+
+This fraud risk score — low, 0.12 — was automatically assigned at enrollment by our AI.
+Government and admin can see it. Farmers cannot.
+
+Now let me show the enrollment flow.
+A farmer who wants to register a new animal submits a request here —
+their location, preferred date, and animal count.
+This goes directly to available enrollment agents in their area.
+
+Now I am logged in as an enrollment agent.
+The agent dashboard shows all incoming requests from farmers.
+
+The agent sees the farmer's name, location, phone, and preferred date.
+They accept the request, schedule it, and head to the farm.
+
+This launches the 4-step live capture session.
+
+Step 1 — Cow detection.
+The camera opens and YOLOv8 starts scanning every frame in real time,
+drawing a detection box around the animal and showing a live confidence score.
+Once the animal is stable and above the threshold, the agent captures.
+
+Step 2 — Muzzle capture.
+The agent moves closer. The muzzle model takes over —
+the muzzle print is as unique to a cow as a fingerprint is to a human.
+
+Step 3 — Body texture, which is optional.
+The agent captures a clean side-view of the animal — no model needed,
+just a full-frame shot for additional texture analysis.
+
+Step 4 — Agent selfie.
+The camera flips to front-facing. The agent takes a verification selfie,
+so every enrollment is tied to a real, accountable person.
+
+All four images, GPS location, and device info are then reviewed and submitted to the cloud.
+
+The moment enrollment completes, the record is live in DynamoDB.
+The biometric embedding is indexed in OpenSearch for instant duplicate detection,
+and the fraud score is computed automatically and attached.
+
+Notice the livestock ID — PA prefixed, unique, permanent — this is the animal's Aadhaar.
+
+This is the verification engine.
+Anyone — a vet, an insurer, a government inspector —
+can enter or scan a livestock ID and instantly pull the full verified animal profile.
+No login. No app. Works from any device, anywhere.
+
+Ownership, breed, health status, insurance — all verified in one second.
+This is the real-world power of a biometric digital identity
+
+This is the government officer view.
+
+The India map shows enrollment density across every state.
+Click any state and it drills into district-level data in real time.
+
+These are enrollment trends month by month —
+policymakers can track the pace of registration at a glance.
+
+Breed distribution by region — valuable for agricultural planning and conservation.
+
+The fraud overview flags high-risk enrollments by state and by agent,
+so investigation teams know exactly where to audit.
+
+And the agent leaderboard ranks field agents by performance,
+enabling incentive programs and accountability at scale.
+
+All of this is live data, powered by our Lambda analytics endpoints hitting DynamoDB directly.
+
+Back in the agent dashboard —
+agents see all animals they have enrolled, full session history,
+and the status of every request — pending, scheduled, completed.
+
+Every session is fully traceable — agent ID, timestamp, GPS location, device info.
+Full audit trail. Impossible to tamper with.
+This QR code is the bridge between the physical and digital world.
+A vet on a farm, an insurance inspector, a government officer —
+anyone can scan this and instantly pull up the full verified animal profile.
+No login. No app. Anywhere in India.
+
+One scan. One source of truth. For every animal in the country.
+
+That is Pashu Aadhaar AI.
+Thank you.

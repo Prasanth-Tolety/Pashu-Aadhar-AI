@@ -6,6 +6,15 @@ import LanguageSelector from '../components/LanguageSelector';
 import { ROLE_CONFIG, UserRole } from '../types';
 import '../styles/Auth.css';
 
+const PROTOTYPE_ACCOUNTS = [
+  { role: 'Farmer',           icon: '🧑‍🌾', phone: '9876543210', password: 'Farmer@123',  color: '#4caf50' },
+  { role: 'Enrollment Agent', icon: '🕵️', phone: '9876543215', password: 'Agent@1234',  color: '#ff9800' },
+  { role: 'Veterinarian',     icon: '🩺', phone: '9876543211', password: 'Vet@12345',   color: '#00bcd4' },
+  { role: 'Insurance Agent',  icon: '🛡️', phone: '9876543212', password: 'Insurer@123', color: '#9c27b0' },
+  { role: 'Government',       icon: '🏛️', phone: '9876543213', password: 'Govt@12345',  color: '#1565c0' },
+  { role: 'Administrator',    icon: '⚙️', phone: '9876543214', password: 'Admin@1234',  color: '#37474f' },
+];
+
 export default function Login() {
   const navigate = useNavigate();
   const { login, completeNewPassword, needsNewPassword, loading: authLoading } = useAuth();
@@ -94,7 +103,41 @@ export default function Login() {
   return (
     <div className="auth-container">
       <Link to="/" className="auth-home-link">🏠 {t.home}</Link>
-      <div className="auth-card">
+      <div className="auth-page-layout">
+
+        {/* ─── Prototype Accounts Panel (left side) ─── */}
+        <div className="prototype-accounts-panel">
+          <div className="prototype-accounts-header">
+            <span className="prototype-badge">🧪 Demo</span>
+            <h3>Prototype Accounts</h3>
+            <p>Click any account to auto-fill credentials</p>
+          </div>
+          <div className="prototype-accounts-list">
+            {PROTOTYPE_ACCOUNTS.map((acct) => (
+              <button
+                key={acct.phone}
+                className="prototype-account-row"
+                style={{ borderLeftColor: acct.color }}
+                onClick={() => {
+                  setPhoneNumber(acct.phone);
+                  setPassword(acct.password);
+                }}
+                type="button"
+              >
+                <span className="proto-icon">{acct.icon}</span>
+                <div className="proto-details">
+                  <span className="proto-role" style={{ color: acct.color }}>{acct.role}</span>
+                  <span className="proto-phone">{acct.phone}</span>
+                </div>
+                <div className="proto-creds">
+                  <span className="proto-pwd">{acct.password}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="auth-card">
         <div className="auth-header">
           <div className="auth-lang-row">
             <LanguageSelector compact />
@@ -212,6 +255,7 @@ export default function Login() {
         <div className="auth-footer">
           {t.dontHaveAccount}{' '}
           <Link to="/signup" className="auth-footer-link">{t.createAccount}</Link>
+        </div>
         </div>
       </div>
     </div>
