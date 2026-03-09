@@ -7,6 +7,9 @@ import { getUploadUrl, updateAnimal as apiUpdateAnimal } from '../services/api';
 import { uploadToS3 } from '../services/s3';
 import axios from 'axios';
 import QRCodeCard from '../components/QRCodeCard';
+import SpeakButton from '../components/SpeakButton';
+import VoiceToggle from '../components/VoiceToggle';
+import { Link as RouterLink } from 'react-router-dom';
 import '../styles/AnimalDetail.css';
 import '../styles/QRCode.css';
 
@@ -348,10 +351,13 @@ export default function AnimalDetail() {
       {/* Header */}
       <header className="detail-header">
         <Link to="/dashboard" className="back-link">{t.backToDashboard}</Link>
-        <h1>{t.animalProfile}</h1>
-        <span className="role-chip" style={{ background: roleConfig.color + '22', color: roleConfig.color }}>
-          {roleConfig.icon} {roleConfig.label}
-        </span>
+        <h1>{t.animalProfile} <SpeakButton text={t.animalProfile} /></h1>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <VoiceToggle />
+          <span className="role-chip" style={{ background: roleConfig.color + '22', color: roleConfig.color }}>
+            {roleConfig.icon} {roleConfig.label}
+          </span>
+        </div>
       </header>
 
       {/* Animal ID Banner */}
@@ -457,6 +463,19 @@ export default function AnimalDetail() {
               animalName={[animal.species, animal.breed].filter(Boolean).join(' — ')}
               ownerName={animal.owner_id}
             />
+
+            {/* AI Vet Assistant Quick Link */}
+            <RouterLink
+              to={`/ai-assistant?animal_id=${animal.livestock_id}`}
+              className="ai-assistant-link-card"
+            >
+              <span className="ai-link-icon">🤖</span>
+              <div>
+                <strong>AI Vet Assistant</strong>
+                <span>Ask AI about this animal’s health, symptoms, or vaccines</span>
+              </div>
+              <span className="ai-link-arrow">→</span>
+            </RouterLink>
 
             {perms.canEditDetails && !editing && (
               <button className="edit-details-btn" onClick={() => setEditing(true)}>✏️ {t.editDetails}</button>
@@ -868,7 +887,7 @@ function InfoItem({ label, value }: { label: string; value?: string }) {
   return (
     <div className="info-item">
       <span className="info-label">{label}</span>
-      <span className="info-value">{value || 'N/A'}</span>
+      <span className="info-value">{value || 'N/A'} <SpeakButton text={`${label}: ${value || 'Not available'}`} /></span>
     </div>
   );
 }

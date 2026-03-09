@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import VoiceToggle from '../components/VoiceToggle';
 import {
   getAnalyticsSummary,
   getAnalyticsStates,
@@ -217,6 +218,7 @@ export default function GovDashboard() {
           </div>
         </div>
         <div className="gov-header-right">
+          <VoiceToggle />
           <div className="tricolor-bar">
             <span className="tri-saffron" />
             <span className="tri-white" />

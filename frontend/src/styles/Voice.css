@@ -1,0 +1,98 @@
+/* ─── Voice / TTS Styles ─────────────────────────────────────────── */
+
+/* Inline speak button (next to text) */
+.speak-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #7c3aed;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  vertical-align: middle;
+  margin-left: 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.speak-btn:hover {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6d28d9;
+}
+
+.speak-btn.active {
+  color: #dc2626;
+  animation: pulse-speak 1.2s infinite;
+}
+
+.speak-btn.small svg {
+  width: 14px;
+  height: 14px;
+}
+
+.speak-btn.normal svg {
+  width: 18px;
+  height: 18px;
+}
+
+@keyframes pulse-speak {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Voice toggle button (top-right of page) */
+.voice-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 2px solid #d1d5db;
+  border-radius: 20px;
+  background: #fff;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+
+.voice-toggle-btn:hover {
+  border-color: #7c3aed;
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.voice-toggle-btn.active {
+  border-color: #7c3aed;
+  background: #7c3aed;
+  color: #fff;
+}
+
+.voice-toggle-btn.active:hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+}
+
+.voice-toggle-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.3px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .voice-toggle-btn {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+  }
+  .voice-toggle-label {
+    display: none;
+  }
+  .speak-btn {
+    margin-left: 2px;
+    padding: 1px 2px;
+  }
+}

@@ -292,3 +292,56 @@ export async function getAnalyticsAgents(token: string) {
   const res = await apiClient.get('/analytics/agents', { headers: authHeaders(token) });
   return res.data;
 }
+
+// ─── GenAI Assistant ─────────────────────────────────────────────────
+export async function askAiAssistant(
+  question: string,
+  animalId?: string,
+  token?: string | null
+): Promise<{ response: string; interaction_id: string; animal_id: string | null }> {
+  const res = await apiClient.post(
+    '/ai-assistant',
+    { question, animal_id: animalId || null },
+    { headers: authHeaders(token ?? null) }
+  );
+  return res.data;
+}
+
+export async function sendAiChat(
+  messages: Array<{ role: string; content: string }>,
+  chatId?: string,
+  animalId?: string,
+  token?: string | null
+): Promise<{ response: string; chat_id: string }> {
+  const res = await apiClient.post(
+    '/ai-chat',
+    { messages, chat_id: chatId || undefined, animal_id: animalId || null },
+    { headers: authHeaders(token ?? null) }
+  );
+  return res.data;
+}
+
+// ─── Outbreak Alerts ─────────────────────────────────────────────────
+export async function getOutbreakAlerts(
+  state?: string,
+  token?: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<{ alerts: any[] }> {
+  const res = await apiClient.get('/ai-assistant/outbreaks', {
+    params: state ? { state } : {},
+    headers: authHeaders(token ?? null),
+  });
+  return res.data;
+}
+
+export async function triggerOutbreakScan(
+  token?: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<{ alerts: any[]; scanned_at: string }> {
+  const res = await apiClient.post(
+    '/ai-assistant/outbreaks/scan',
+    {},
+    { headers: authHeaders(token ?? null) }
+  );
+  return res.data;
+}
